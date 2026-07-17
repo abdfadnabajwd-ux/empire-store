@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1e2638">
+<title>لوحة تحكم امباير | EMPIRE Admin</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap');
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#1e2638; --navy2:#232c42; --navy3:#283250;
+  --line:rgba(212,175,85,.22); --line2:rgba(212,175,85,.4);
+  --gold:#d4af55; --gold2:#e6c878;
+  --white:#f4f6fb; --grey:#a9b1c6; --muted:#76809a;
+  --danger:#e0645f; --ok:#6fbf87;
+}
+html{background:var(--navy)}
+body{font-family:'Cairo',sans-serif;background:var(--navy);color:var(--white);min-height:100vh;-webkit-font-smoothing:antialiased}
+.wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px}
+h1{font-size:1.3rem;font-weight:800}
+.eyebrow{font-size:.7rem;letter-spacing:2px;color:var(--gold2);font-weight:700;text-transform:uppercase}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(30,38,56,.95);backdrop-filter:blur(8px);z-index:10}
+.logo{font-weight:800;color:var(--gold2);letter-spacing:1px;font-size:1.05rem}
+.btn{font-family:'Cairo',sans-serif;font-size:.85rem;font-weight:700;border-radius:10px;padding:10px 18px;cursor:pointer;border:none;transition:.2s}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a2132}
+.btn-ghost{background:transparent;color:var(--gold2);border:1px solid var(--line2)}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid rgba(224,100,95,.4)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:7px 12px;font-size:.78rem}
+input,select,textarea{font-family:'Cairo',sans-serif;width:100%;background:var(--navy2);border:1px solid var(--line);color:var(--white);border-radius:10px;padding:11px 13px;font-size:.9rem;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--line2)}
+label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-weight:600}
+.field{margin-bottom:14px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* ===== login ===== */
+#loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.loginCard{background:var(--navy2);border:1px solid var(--line);border-radius:18px;padding:30px 24px;max-width:360px;width:100%;text-align:center}
+.loginCard h1{margin:10px 0 4px}
+.loginCard p{color:var(--grey);font-size:.85rem;margin-bottom:22px}
+.loginCard .field{text-align:right}
+#loginError{color:var(--danger);font-size:.82rem;margin-top:10px;min-height:1.2em}
+/* ===== dashboard ===== */
+#dash{display:none}
+.summary{display:flex;gap:10px;margin:18px 0}
+.stat{flex:1;background:var(--navy2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+.stat b{display:block;font-size:1.3rem;color:var(--gold2)}
+.stat span{font-size:.72rem;color:var(--grey)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.searchBox{margin-bottom:14px}
+.plist{display:flex;flex-direction:column;gap:10px}
+.pcard{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;gap:12px;align-items:center}
+.pcard img{width:52px;height:52px;object-fit:contain;background:var(--navy3);border-radius:8px;padding:6px;flex-shrink:0}
+.pcard .ph{width:52px;height:52px;border-radius:8px;background:var(--navy3);flex-shrink:0}
+.pinfo{flex:1;min-width:0}
+.pinfo .pn{font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pinfo .pm{font-size:.76rem;color:var(--grey);margin-top:2px}
+.pinfo .pp{font-size:.82rem;color:var(--gold2);font-weight:700;margin-top:3px}
+.pacts{display:flex;flex-direction:column;gap:6px}
+.tag{display:inline-block;font-size:.68rem;background:var(--navy3);border:1px solid var(--line);border-radius:20px;padding:2px 9px;color:var(--grey);margin-inline-end:4px}
+/* ===== modal form ===== */
+.overlay{position:fixed;inset:0;background:rgba(10,14,24,.75);display:none;align-items:flex-end;justify-content:center;z-index:100;backdrop-filter:blur(3px)}
+.overlay.open{display:flex}
+.sheet{background:var(--navy);border:1px solid var(--line2);border-radius:20px 20px 0 0;max-width:640px;width:100%;max-height:92vh;overflow-y:auto;padding:20px 18px 30px}
+.sheet h2{font-size:1.05rem;margin-bottom:16px}
+.sheetTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.closeX{background:none;border:none;color:var(--grey);font-size:1.3rem;cursor:pointer;line-height:1}
+.imgPreviewRow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.imgPreviewRow img{width:44px;height:44px;object-fit:contain;background:var(--navy3);border-radius:8px;padding:5px}
+.checkRow{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.checkRow input{width:auto}
+.formActions{display:flex;gap:10px;margin-top:6px}
+.formActions .btn{flex:1}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy2);border:1px solid var(--line2);color:var(--white);padding:11px 20px;border-radius:30px;font-size:.85rem;opacity:0;transition:.3s;z-index:200;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:.88rem}
+.small{font-size:.76rem;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- ===== شاشة تسجيل الدخول ===== -->
+<div id="loginScreen">
+  <div class="loginCard">
+    <div class="eyebrow">EMPIRE ADMIN</div>
+    <h1>لوحة تحكم امباير</h1>
+    <p>سجّل دخولك لإدارة منتجات المتجر</p>
+    <div class="field">
+      <label>البريد الإلكتروني</label>
+      <input type="email" id="loginEmail" placeholder="admin@empire.iq" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>كلمة المرور</label>
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-gold" id="loginBtn" style="width:100%">تسجيل الدخول</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<!-- ===== لوحة التحكم ===== -->
+<div id="dash">
+  <div class="topbar">
+    <div class="logo">EMPIRE <span style="color:var(--grey);font-weight:400;font-size:.8rem">Admin</span></div>
+    <button class="btn btn-ghost btn-sm" id="logoutBtn">تسجيل الخروج</button>
+  </div>
+
+  <div class="wrap">
+    <div class="summary">
+      <div class="stat"><b id="statTotal">0</b><span>إجمالي المنتجات</span></div>
+      <div class="stat"><b id="statCats">0</b><span>الفئات</span></div>
+    </div>
+
+    <div class="tools">
+      <button class="btn btn-gold" id="addBtn">+ إضافة منتج جديد</button>
+      <button class="btn btn-ghost" id="importBtn">استيراد كتالوج امباير الحالي</button>
+    </div>
+
+    <div class="searchBox">
+      <input type="text" id="searchInput" placeholder="ابحث عن منتج...">
+    </div>
+
+    <div id="plist" class="plist"></div>
+    <div id="emptyState" class="empty" style="display:none">
+      ما عندك منتجات بعد. اضغط "إضافة منتج جديد" أو "استيراد كتالوج امباير الحالي" لتبدأ.
+    </div>
+  </div>
+</div>
+
+<!-- ===== فورم إضافة/تعديل منتج ===== -->
+<div class="overlay" id="formOverlay">
+  <div class="sheet">
+    <div class="sheetTop">
+      <h2 id="formTitle">إضافة منتج</h2>
+      <button class="closeX" id="closeForm">✕</button>
+    </div>
+
+    <div class="field">
+      <label>اسم المنتج (يظهر بالمتجر)</label>
+      <input type="text" id="fName" placeholder="آيفون 17 برو ماكس — 256GB">
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>الفئة</label>
+        <select id="fCat">
+          <option value="iPhone">آيفون</option>
+          <option value="iPad">آيباد</option>
+          <option value="Mac">ماك بوك</option>
+          <option value="AirPods">إيربودز</option>
+          <option value="Acc">اكسسوارات</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>السعر (دينار)</label>
+        <input type="text" id="fPrice" placeholder="1,838,000">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>الصورة</label>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button type="button" class="btn btn-ghost btn-sm" id="imgTabLib" style="flex:1">من مكتبة المتجر</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="imgTabUpload" style="flex:1">رفع صورة جديدة</button>
+      </div>
+      <div id="imgLibBox">
+        <div class="imgPreviewRow">
+          <img id="fImgPreview" src="" alt="">
+          <select id="fImg" style="flex:1"></select>
+        </div>
+        <div class="small">الصورة تُختار من مكتبة الصور الموجودة أصلاً بالمتجر</div>
+      </div>
+      <div id="imgUploadBox" style="display:none">
+        <div class="imgPreviewRow">
+          <img id="fUploadPreview" src="" alt="" style="display:none">
+        </div>
+        <input type="file" id="fImgFile" accept="image/*">
+        <div class="small" id="uploadStatus">صيغة JPG أو PNG، الحجم الأفضل أقل من 1 ميجا</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>المواصفات (افصل بينها بفاصلة)</label>
+      <input type="text" id="fSpecs" placeholder="256GB, eSIM, Pro Max">
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>شارة (اختياري)</label>
+        <input type="text" id="fBadge" placeholder="الأحدث / جديد / مستخدم">
+      </div>
+      <div class="field">
+        <label>الكمية المتوفرة (اختياري)</label>
+        <input type="number" id="fStock" placeholder="3" min="0">
+      </div>
+    </div>
+
+    <div class="checkRow">
+      <input type="checkbox" id="fUsed">
+      <label style="margin:0">منتج مستخدم (Used)</label>
+    </div>
+
+    <div id="formError" style="color:var(--danger);font-size:.82rem;margin-bottom:8px;min-height:1.1em"></div>
+
+    <div class="formActions">
+      <button class="btn btn-ghost" id="cancelForm">إلغاء</button>
+      <button class="btn btn-gold" id="saveForm">حفظ المنتج</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== تأكيد الحذف ===== -->
+<div class="overlay" id="delOverlay">
+  <div class="sheet" style="text-align:center">
+    <h2 style="margin-bottom:10px">حذف المنتج؟</h2>
+    <p class="small" style="margin-bottom:18px">هذا الإجراء لا يمكن التراجع عنه، وسيختفي المنتج من المتجر فوراً.</p>
+    <div class="formActions">
+      <button class="btn btn-ghost" id="cancelDel">إلغاء</button>
+      <button class="btn btn-danger" style="border-color:var(--danger)" id="confirmDel">نعم، احذف</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   إعدادات Firebase — نفس مشروع empire-store.html
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDXYIgsj_S8Eqomlal23RxHaRc6ffWGIkc",
+  authDomain: "empire-store-9c546.firebaseapp.com",
+  projectId: "empire-store-9c546",
+  storageBucket: "empire-store-9c546.firebasestorage.app",
+  messagingSenderId: "319590988119",
+  appId: "1:319590988119:web:acae8166842f5091f4e612"
+};
+
+/* ===== مكتبة الصور المتوفرة بالمتجر ===== */
+const IMG_KEYS = ["ip17","ip17b","ip17s","ip16","ip16k","ip14","ip14g","ip13p","ip13pm","ip13pb","ip13pmg","ip13pmz","ipad","ipadpro","pods","mac","macw","cable","adapter","charger"];
+const IMG_LABELS = {
+  ip17:"آيفون 17 (أساسي)", ip17b:"آيفون 17 (بديل 1)", ip17s:"آيفون 17 (بديل 2)",
+  ip16:"آيفون 16 برو ماكس", ip16k:"آيفون 16 — مستخدم",
+  ip14:"آيفون 14 (أساسي)", ip14g:"آيفون 14 (بديل)",
+  ip13p:"آيفون 13 برو", ip13pm:"آيفون 13 برو ماكس", ip13pb:"آيفون 13 برو (بديل)",
+  ip13pmg:"آيفون 13 برو ماكس (بديل)", ip13pmz:"آيفون 13 برو ماكس (بديل 2)",
+  ipad:"آيباد 11", ipadpro:"آيباد برو",
+  pods:"إيربودز", mac:"ماك بوك — روز كولد", macw:"ماك بوك — أبيض",
+  cable:"كيبل", adapter:"رأس شاحن", charger:"شاحن لاسلكي"
+};
+// نفس روابط الصور base64 المستخدمة بالمتجر (نسخة مصغّرة للمعاينة فقط داخل لوحة التحكم)
+let IMG_MAP = {}; // تُملأ لاحقاً إذا احتجنا؛ نستخدم أيقونة بديلة إن لم تتوفر
+
+/* ===== كتالوج امباير الحالي (لزر الاستيراد) ===== */
+const CURRENT_CATALOG = [
+  {name:"آيفون 17 برو ماكس — eSIM", cat:"iPhone", img:"ip17", badge:"الأحدث", specs:["256GB","eSIM","Pro Max"], price:"1,838,000"},
+  {name:"آيفون 17 برو ماكس — 1SIM", cat:"iPhone", img:"ip17b", badge:"الأكثر طلباً", specs:["256GB","1SIM","Pro Max"], price:"1,975,000"},
+  {name:"آيفون 17 برو ماكس — ZA", cat:"iPhone", img:"ip17s", specs:["256GB","ZA","Pro Max"], price:"2,055,000"},
+  {name:"آيفون 17 برو ماكس — نسخة عربية", cat:"iPhone", img:"ip17", specs:["256GB","عربي","Pro Max"], price:"2,099,000"},
+  {name:"آيفون 17 برو ماكس — 512GB", cat:"iPhone", img:"ip17b", badge:"سعة كبيرة", specs:["512GB","Pro Max"], price:"2,328,000"},
+  {name:"آيفون 17 برو ماكس — 2 تيرا", cat:"iPhone", img:"ip17s", badge:"السعة القصوى", specs:["2TB","Pro Max"], price:"2,988,000"},
+  {name:"آيفون 17 برو — eSIM", cat:"iPhone", img:"ip17b", badge:"جديد", specs:["256GB","eSIM","Pro"], price:"1,748,000"},
+  {name:"آيفون 17 سلفر — 2SIM", cat:"iPhone", img:"ip17s", specs:["سلفر","2SIM"], price:"1,328,000"},
+  {name:"آيفون 16 برو ماكس", cat:"iPhone", img:"ip16", specs:["256GB","Pro Max"], price:"1,738,000"},
+  {name:"آيفون 16 برو ماكس — مستخدم", cat:"iPhone", img:"ip16k", badge:"مستخدم", used:true, specs:["256GB","مستخدم"], price:"1,368,000"},
+  {name:"آيفون 14 برو ماكس — 128GB", cat:"iPhone", img:"ip14", specs:["128GB","Pro Max"], price:"838,000"},
+  {name:"آيفون 14 برو ماكس — 256GB", cat:"iPhone", img:"ip14g", specs:["256GB","Pro Max"], price:"898,000"},
+  {name:"آيفون 14 برو — 128GB", cat:"iPhone", img:"ip14", specs:["128GB","Pro"], price:"745,000"},
+  {name:"آيفون 14 برو — 256GB", cat:"iPhone", img:"ip14g", specs:["256GB","Pro"], price:"798,000"},
+  {name:"آيفون 13 برو ماكس — 128GB", cat:"iPhone", img:"ip13pm", specs:["128GB","Pro Max"], price:"668,000"},
+  {name:"آيفون 13 برو ماكس — 256GB", cat:"iPhone", img:"ip13pmg", specs:["256GB","Pro Max"], price:"718,000"},
+  {name:"آيفون 13 برو — 128GB", cat:"iPhone", img:"ip13pb", specs:["128GB","Pro"], price:"565,000"},
+  {name:"آيفون 13 برو — 256GB", cat:"iPhone", img:"ip13p", specs:["256GB","Pro"], price:"598,000"},
+  {name:"آيباد 11 — A16", cat:"iPad", img:"ipad", badge:"جديد", specs:["128GB","A16"], price:"528,000"},
+  {name:"آيباد برو M5 — 13 إنش", cat:"iPad", img:"ipadpro", badge:"احترافي", specs:["M5","256GB","13 إنش"], price:"1,798,000"},
+  {name:"إيربودز برو 3 — بالترجمة", cat:"AirPods", img:"pods", badge:"ترجمة فورية", specs:["Pro 3","ANC"], price:"328,000"},
+  {name:"ماك بوك اير — روز كولد", cat:"Mac", img:"mac", specs:["256GB","Rose Gold"], price:"398,000"},
+  {name:"ماك بوك اير — أبيض", cat:"Mac", img:"macw", specs:["256GB","أبيض"], price:"218,000"},
+  {name:"كيبل Apple — USB إلى Type C", cat:"Acc", img:"cable", specs:["USB","Type C","أصلي"], price:"19,000", stock:10},
+  {name:"كيبل Apple — Type C إلى Type C", cat:"Acc", img:"cable", specs:["Type C","Type C","أصلي"], price:"19,000", stock:10},
+  {name:"كيبل Apple — Lightning إلى Type C", cat:"Acc", img:"cable", specs:["Lightning","Type C","أصلي"], price:"19,000", stock:10},
+  {name:"رأس شاحن — 20W", cat:"Acc", img:"adapter", specs:["20W","شحن سريع"], price:"28,000", stock:10},
+  {name:"رأس شاحن — 35W", cat:"Acc", img:"adapter", specs:["35W","شحن سريع"], price:"33,000", stock:10},
+  {name:"رأس شاحن — 45W", cat:"Acc", img:"adapter", specs:["45W","شحن سريع"], price:"38,000", stock:10},
+  {name:"شاحن لاسلكي AceFast — 3 في 1", cat:"Acc", img:"charger", badge:"جديد", specs:["3in1","لاسلكي","ساعة + سماعة + هاتف"], price:"55,000", stock:6}
+];
+
+const CAT_LABELS = {iPhone:'آيفون', iPad:'آيباد', Mac:'ماك بوك', AirPods:'إيربودز', Acc:'اكسسوارات'};
+
+let auth, db, fsMod, authMod;
+let products = []; // {id, ...fields}
+let editingId = null;
+let pendingDelId = null;
+let imgSource = 'lib'; // 'lib' or 'upload'
+let uploadedImgUrl = null; // holds base64 data URL for uploaded images
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+async function initFirebase(){
+  const appMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+  authMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+  fsMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  const app = appMod.initializeApp(FIREBASE_CONFIG);
+  auth = authMod.getAuth(app);
+  db = fsMod.getFirestore(app);
+
+  authMod.onAuthStateChanged(auth, user=>{
+    if(user){
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('dash').style.display='block';
+      listenProducts();
+    } else {
+      document.getElementById('loginScreen').style.display='flex';
+      document.getElementById('dash').style.display='none';
+    }
+  });
+}
+
+document.getElementById('loginBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  if(!email || !pass){ errEl.textContent = 'أدخل البريد وكلمة المرور'; return; }
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'جارٍ الدخول...';
+  try{
+    await authMod.signInWithEmailAndPassword(auth, email, pass);
+  }catch(e){
+    errEl.textContent = 'بيانات الدخول غير صحيحة';
+  }
+  btn.disabled = false; btn.textContent = 'تسجيل الدخول';
+});
+
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  authMod.signOut(auth);
+});
+
+function listenProducts(){
+  const q = fsMod.query(fsMod.collection(db,'products'), fsMod.orderBy('order','asc'));
+  fsMod.onSnapshot(q, snap=>{
+    products = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderList();
+  }, err=>{
+    console.warn(err);
+    showToast('تعذّر تحميل المنتجات');
+  });
+}
+
+function renderList(){
+  const wrap = document.getElementById('plist');
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const filtered = q ? products.filter(p=> (p.name||'').toLowerCase().includes(q)) : products;
+
+  document.getElementById('statTotal').textContent = products.length;
+  document.getElementById('statCats').textContent = new Set(products.map(p=>p.cat)).size;
+
+  document.getElementById('emptyState').style.display = products.length ? 'none' : 'block';
+
+  wrap.innerHTML = filtered.map(p=>{
+    const imgTag = `<div class="ph" style="display:flex;align-items:center;justify-content:center;font-size:1.3rem">📦</div>`;
+    return `<div class="pcard">
+      ${imgTag}
+      <div class="pinfo">
+        <div class="pn">${escapeHtml(p.name)}</div>
+        <div class="pm"><span class="tag">${CAT_LABELS[p.cat]||p.cat}</span>${p.badge?`<span class="tag">${escapeHtml(p.badge)}</span>`:''}</div>
+        <div class="pp">${escapeHtml(p.price)} د.ع</div>
+      </div>
+      <div class="pacts">
+        <button class="btn btn-ghost btn-sm" onclick="openEdit('${p.id}')">تعديل</button>
+        <button class="btn btn-danger btn-sm" onclick="openDelete('${p.id}')">حذف</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+document.getElementById('searchInput').addEventListener('input', renderList);
+function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ===== فورم إضافة/تعديل ===== */
+function populateImgSelect(){
+  const sel = document.getElementById('fImg');
+  sel.innerHTML = IMG_KEYS.map(k=>`<option value="${k}">${IMG_LABELS[k]||k}</option>`).join('');
+}
+function setImgTab(tab){
+  imgSource = tab;
+  document.getElementById('imgLibBox').style.display = tab==='lib' ? 'block' : 'none';
+  document.getElementById('imgUploadBox').style.display = tab==='upload' ? 'block' : 'none';
+  document.getElementById('imgTabLib').style.borderColor = tab==='lib' ? 'var(--gold2)' : 'var(--line2)';
+  document.getElementById('imgTabUpload').style.borderColor = tab==='upload' ? 'var(--gold2)' : 'var(--line2)';
+}
+document.getElementById('imgTabLib').addEventListener('click', ()=>setImgTab('lib'));
+document.getElementById('imgTabUpload').addEventListener('click', ()=>setImgTab('upload'));
+
+document.getElementById('fImgFile').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('uploadStatus');
+  const preview = document.getElementById('fUploadPreview');
+  statusEl.textContent = 'جارٍ تجهيز الصورة...';
+  try{
+    const dataUrl = await resizeImageToDataUrl(file, 700, 0.72);
+    uploadedImgUrl = dataUrl;
+    preview.src = dataUrl;
+    preview.style.display = 'block';
+    const kb = Math.round(dataUrl.length * 0.75 / 1024);
+    statusEl.textContent = `تم تجهيز الصورة ✓ (${kb} كيلوبايت)`;
+  }catch(err){
+    statusEl.textContent = 'تعذّر معالجة الصورة، جرب صورة ثانية';
+    uploadedImgUrl = null;
+  }
+});
+
+/* تصغير الصورة وتحويلها لـ base64 عشان تنخزن مباشرة بقاعدة البيانات المجانية بدون الحاجة لخدمة تخزين مدفوعة */
+function resizeImageToDataUrl(file, maxWidth, quality){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      img.onload = ()=>{
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function resetImgField(){
+  uploadedImgUrl = null;
+  document.getElementById('fImgFile').value = '';
+  document.getElementById('fUploadPreview').style.display = 'none';
+  document.getElementById('fUploadPreview').src = '';
+  document.getElementById('uploadStatus').textContent = 'صيغة JPG أو PNG، الحجم الأفضل أقل من 1 ميجا';
+  setImgTab('lib');
+}
+
+function openAdd(){
+  editingId = null;
+  document.getElementById('formTitle').textContent = 'إضافة منتج';
+  document.getElementById('fName').value = '';
+  document.getElementById('fCat').value = 'iPhone';
+  document.getElementById('fPrice').value = '';
+  document.getElementById('fSpecs').value = '';
+  document.getElementById('fBadge').value = '';
+  document.getElementById('fStock').value = '';
+  document.getElementById('fUsed').checked = false;
+  populateImgSelect();
+  document.getElementById('fImg').value = 'ip17';
+  resetImgField();
+  document.getElementById('formError').textContent = '';
+  document.getElementById('formOverlay').classList.add('open');
+}
+function openEdit(id){
+  const p = products.find(x=>x.id===id);
+  if(!p) return;
+  editingId = id;
+  document.getElementById('formTitle').textContent = 'تعديل المنتج';
+  document.getElementById('fName').value = p.name||'';
+  document.getElementById('fCat').value = p.cat||'iPhone';
+  document.getElementById('fPrice').value = p.price||'';
+  document.getElementById('fSpecs').value = Array.isArray(p.specs) ? p.specs.join(', ') : (p.specs||'');
+  document.getElementById('fBadge').value = p.badge||'';
+  document.getElementById('fStock').value = p.stock||'';
+  document.getElementById('fUsed').checked = !!p.used;
+  populateImgSelect();
+  resetImgField();
+  const isUploadedImg = p.img && (p.img.startsWith('http') || p.img.startsWith('data:'));
+  if(isUploadedImg){
+    uploadedImgUrl = p.img;
+    document.getElementById('fUploadPreview').src = p.img;
+    document.getElementById('fUploadPreview').style.display = 'block';
+    document.getElementById('uploadStatus').textContent = 'الصورة الحالية للمنتج (اختر ملف جديد لتغييرها)';
+    setImgTab('upload');
+  } else {
+    document.getElementById('fImg').value = p.img || 'ip17';
+    setImgTab('lib');
+  }
+  document.getElementById('formError').textContent = '';
+  document.getElementById('formOverlay').classList.add('open');
+}
+document.getElementById('addBtn').addEventListener('click', openAdd);
+document.getElementById('closeForm').addEventListener('click', ()=>document.getElementById('formOverlay').classList.remove('open'));
+document.getElementById('cancelForm').addEventListener('click', ()=>document.getElementById('formOverlay').classList.remove('open'));
+
+document.getElementById('saveForm').addEventListener('click', async ()=>{
+  const name = document.getElementById('fName').value.trim();
+  const price = document.getElementById('fPrice').value.trim();
+  const cat = document.getElementById('fCat').value;
+  const specsRaw = document.getElementById('fSpecs').value.trim();
+  const badge = document.getElementById('fBadge').value.trim();
+  const stockRaw = document.getElementById('fStock').value;
+  const used = document.getElementById('fUsed').checked;
+  const errEl = document.getElementById('formError');
+
+  if(!name || !price){ errEl.textContent = 'الاسم والسعر مطلوبين'; return; }
+  if(imgSource==='upload' && !uploadedImgUrl){ errEl.textContent = 'ارفع صورة أو ارجع لتبويب مكتبة المتجر'; return; }
+
+  const img = imgSource==='upload' ? uploadedImgUrl : document.getElementById('fImg').value;
+  const specs = specsRaw.split(',').map(s=>s.trim()).filter(Boolean);
+  const data = {
+    name, cat, img, tag:name, badge: badge||'', used,
+    specs, price,
+    order: editingId ? (products.find(p=>p.id===editingId)?.order ?? Date.now()) : Date.now()
+  };
+  if(stockRaw) data.stock = Number(stockRaw);
+
+  const btn = document.getElementById('saveForm');
+  btn.disabled = true; btn.textContent = 'جارٍ الحفظ...';
+  try{
+    if(editingId){
+      await fsMod.updateDoc(fsMod.doc(db,'products',editingId), data);
+      showToast('تم تحديث المنتج');
+    } else {
+      await fsMod.addDoc(fsMod.collection(db,'products'), data);
+      showToast('تمت إضافة المنتج');
+    }
+    document.getElementById('formOverlay').classList.remove('open');
+  }catch(e){
+    errEl.textContent = 'تعذّر الحفظ، حاول مرة أخرى';
+  }
+  btn.disabled = false; btn.textContent = 'حفظ المنتج';
+});
+
+/* ===== حذف ===== */
+function openDelete(id){
+  pendingDelId = id;
+  document.getElementById('delOverlay').classList.add('open');
+}
+document.getElementById('cancelDel').addEventListener('click', ()=>{
+  document.getElementById('delOverlay').classList.remove('open');
+  pendingDelId = null;
+});
+document.getElementById('confirmDel').addEventListener('click', async ()=>{
+  if(!pendingDelId) return;
+  try{
+    await fsMod.deleteDoc(fsMod.doc(db,'products',pendingDelId));
+    showToast('تم حذف المنتج');
+  }catch(e){
+    showToast('تعذّر الحذف');
+  }
+  document.getElementById('delOverlay').classList.remove('open');
+  pendingDelId = null;
+});
+
+/* ===== استيراد الكتالوج الحالي ===== */
+document.getElementById('importBtn').addEventListener('click', async ()=>{
+  if(products.length){
+    if(!confirm('عندك منتجات مضافة أصلاً. استيراد الكتالوج راح يضيف نسخة ثانية منها. متأكد تريد تكمل؟')) return;
+  } else {
+    if(!confirm('راح نستورد كل منتجات امباير الحالية (٣٠ منتج) للوحة التحكم. تريد تكمل؟')) return;
+  }
+  const btn = document.getElementById('importBtn');
+  btn.disabled = true; btn.textContent = 'جارٍ الاستيراد...';
+  try{
+    let order = Date.now();
+    for(const p of CURRENT_CATALOG){
+      await fsMod.addDoc(fsMod.collection(db,'products'), {...p, order: order++});
+    }
+    showToast('تم استيراد الكتالوج بنجاح');
+  }catch(e){
+    showToast('صار خطأ أثناء الاستيراد');
+  }
+  btn.disabled = false; btn.textContent = 'استيراد كتالوج امباير الحالي';
+});
+
+initFirebase();
+</script>
+</body>
+</html>
