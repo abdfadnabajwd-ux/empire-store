@@ -203,7 +203,7 @@ footer{background:#1a2132;border-top:1px solid var(--line);padding:64px 24px 30p
 .ai-status{font-size:.7rem;color:#6fbf87}
 .ai-close{background:none;border:none;color:var(--grey);font-size:1.1rem;cursor:pointer;padding:4px}
 .ai-messages{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-height:200px;max-height:calc(70vh - 120px)}
-.ai-msg{max-width:82%;padding:9px 13px;border-radius:14px;font-size:.85rem;line-height:1.6}
+.ai-msg{max-width:82%;padding:9px 13px;border-radius:14px;font-size:.85rem;line-height:1.6;white-space:pre-wrap}
 .ai-bot{align-self:flex-start;background:var(--navy3);color:var(--white);border-bottom-left-radius:4px}
 .ai-user{align-self:flex-end;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a2132;font-weight:600;border-bottom-right-radius:4px}
 .ai-typing{align-self:flex-start;background:var(--navy3);padding:10px 14px;border-radius:14px;border-bottom-left-radius:4px;display:flex;gap:4px}
@@ -667,6 +667,13 @@ select.f-input{appearance:none;cursor:pointer}
       <div class="m-label">اختر اللون <span class="note" id="mColorStock"></span></div>
       <div class="colors" id="mColors"></div>
     </div>
+    <div id="mBoxSection" style="display:none">
+      <div class="m-label">خيار العلبة والكيبل</div>
+      <div class="colors" id="mBoxOptions">
+        <button type="button" class="chip selected" onclick="setBoxOption(false,this)"><div class="cn">بدون علبة</div></button>
+        <button type="button" class="chip" onclick="setBoxOption(true,this)"><div class="cn">مع العلبة والكيبل</div><div class="cs">+20,000 د.ع</div></button>
+      </div>
+    </div>
     <div class="m-label">الكمية <span class="note" id="mQtyStock"></span></div>
     <div class="qty">
       <button class="qbtn" id="qtyMinus" onclick="changeQty(-1)">−</button>
@@ -865,12 +872,15 @@ function showToast(msg){
 }
 
 /* ===== MODAL ===== */
+const BOX_FEE = 20000;
+const BOX_ELIGIBLE_MODELS = ['14','13','12'];
 let mState = {};
 function openModal(i){
   const p = PRODUCTS[i];
-  mState = {name:p.name, price:p.price, colors:p.colors?COLOR_SETS[p.colors]:null, selColor:null, qty:1, stock:p.stock||TOTAL_STOCK};
+  const modelMatch = p.cat==='iPhone' ? p.name.match(/آيفون\s*(\d+)/) : null;
+  const model = modelMatch ? modelMatch[1] : '';
+  mState = {name:p.name, basePrice:parseInt(p.price.replace(/,/g,'')), price:p.price, colors:p.colors?COLOR_SETS[p.colors]:null, selColor:null, qty:1, stock:p.stock||TOTAL_STOCK, showBox:BOX_ELIGIBLE_MODELS.includes(model), withBox:false};
   document.getElementById('mTitle').textContent = p.name;
-  document.getElementById('mPrice').textContent = p.price;
   document.getElementById('mQty').textContent = '1';
   const cs = document.getElementById('mColorSection');
   if(mState.colors){
@@ -882,9 +892,28 @@ function openModal(i){
     cs.style.display='none';
     document.getElementById('mQtyStock').textContent='المتوفر: '+mState.stock+' قطع';
   }
+  const bs = document.getElementById('mBoxSection');
+  if(mState.showBox){
+    bs.style.display='';
+    document.querySelectorAll('#mBoxOptions .chip').forEach((b,idx)=>b.classList.toggle('selected', idx===0));
+  } else {
+    bs.style.display='none';
+  }
+  updatePriceDisplay();
   updateQtyUI();
   document.getElementById('modalOverlay').classList.add('open');
   document.body.style.overflow='hidden';
+}
+function setBoxOption(withBox, btn){
+  mState.withBox = withBox;
+  document.querySelectorAll('#mBoxOptions .chip').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  updatePriceDisplay();
+}
+function updatePriceDisplay(){
+  const total = mState.basePrice + (mState.withBox ? BOX_FEE : 0);
+  mState.price = total.toLocaleString('en-US');
+  document.getElementById('mPrice').textContent = mState.price;
 }
 function renderColors(){
   const w=document.getElementById('mColors');
@@ -928,8 +957,9 @@ function confirmOrder(){
   CART.push({
     name: mState.name,
     color: (mState.colors&&mState.selColor!==null)?mState.colors[mState.selColor].name:null,
+    withBox: mState.showBox ? mState.withBox : null,
     qty: mState.qty,
-    price: parseInt(mState.price.replace(/,/g,''))
+    price: mState.basePrice + (mState.withBox ? BOX_FEE : 0)
   });
   updateCartBadge();
   closeModal();
@@ -990,7 +1020,7 @@ function renderCart(){
     <button class="ci-del" onclick="removeItem(${i})">✕</button>
     <div class="ci-info">
       <div class="ci-name">${it.name}</div>
-      <div class="ci-meta">${it.color?'اللون: '+it.color+' · ':''}الكمية: ${it.qty}</div>
+      <div class="ci-meta">${it.color?'اللون: '+it.color+' · ':''}${it.withBox!==null&&it.withBox!==undefined?(it.withBox?'مع العلبة والكيبل · ':'بدون علبة · '):''}الكمية: ${it.qty}</div>
     </div>
     <div class="ci-price">${fmt(it.price*it.qty)} د.ع</div>
   </div>`).join('');
@@ -1056,6 +1086,7 @@ function submitOrder(){
   CART.forEach((it,i)=>{
     msg += (i+1)+'. '+it.name;
     if(it.color) msg += ' — '+it.color;
+    if(it.withBox!==null&&it.withBox!==undefined) msg += it.withBox ? ' (مع علبة وكيبل)' : ' (بدون علبة)';
     msg += ' × '+it.qty+' = '+fmt(it.price*it.qty)+' د.ع\n';
   });
   msg += '━━━━━━━━━━━━━━━\n';
@@ -1086,7 +1117,7 @@ function submitOrder(){
 /* ===== PDF RECEIPT (printable) ===== */
 function openReceipt(info){
   const items = (info&&info.items)?info.items:CART;
-  const rows = items.map((it,i)=>`<tr><td>${i+1}</td><td>${it.name}${it.color?' — '+it.color:''}</td><td>${it.qty}</td><td>${fmt(it.price)}</td><td>${fmt(it.price*it.qty)}</td></tr>`).join('');
+  const rows = items.map((it,i)=>`<tr><td>${i+1}</td><td>${it.name}${it.color?' — '+it.color:''}${(it.withBox!==null&&it.withBox!==undefined)?(it.withBox?' (مع علبة وكيبل)':' (بدون علبة)'):''}</td><td>${it.qty}</td><td>${fmt(it.price)}</td><td>${fmt(it.price*it.qty)}</td></tr>`).join('');
   const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>طلب جاهز — امباير</title>
   <style>
     body{font-family:'Cairo','Segoe UI',sans-serif;color:#1d2030;padding:34px;max-width:700px;margin:0 auto}
