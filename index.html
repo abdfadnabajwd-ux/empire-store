@@ -190,11 +190,10 @@ footer{background:#1a2132;border-top:1px solid var(--line);padding:64px 24px 30p
 }
 
 /* ============ WHATSAPP FLOAT ============ */
-.wa-float{position:fixed;bottom:24px;right:20px;width:54px;height:54px;border-radius:50%;background:#23a55a;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-lg);z-index:99;transition:transform .2s;text-decoration:none}
-.wa-float:hover{transform:translateY(-3px)}
-.ai-float{position:fixed;bottom:24px;left:20px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-lg);z-index:99;transition:transform .2s;border:none;cursor:pointer}
-.ai-float:hover{transform:translateY(-3px)}
-.ai-panel{position:fixed;bottom:90px;left:20px;width:min(360px,92vw);max-height:70vh;background:var(--navy2);border:1px solid var(--line2);border-radius:18px;box-shadow:var(--shadow-lg);z-index:100;display:none;flex-direction:column;overflow:hidden}
+.ai-float{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;padding:14px 24px;border-radius:32px;background:linear-gradient(135deg,var(--gold),var(--gold2));box-shadow:var(--shadow-lg);z-index:99;transition:transform .2s;border:none;cursor:pointer}
+.ai-float span{font-family:'Cairo',sans-serif;font-weight:800;font-size:.95rem;color:#1a2132;white-space:nowrap}
+.ai-float:hover{transform:translateX(-50%) translateY(-3px)}
+.ai-panel{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);width:min(360px,92vw);max-height:70vh;background:var(--navy2);border:1px solid var(--line2);border-radius:18px;box-shadow:var(--shadow-lg);z-index:100;display:none;flex-direction:column;overflow:hidden}
 .ai-panel.open{display:flex}
 .ai-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);background:rgba(212,175,85,.05)}
 .ai-head-title{display:flex;align-items:center;gap:10px}
@@ -215,7 +214,7 @@ footer{background:#1a2132;border-top:1px solid var(--line);padding:64px 24px 30p
 .ai-inputRow input{flex:1;background:var(--navy3);border:1px solid var(--line);color:var(--white);border-radius:20px;padding:10px 16px;font-family:'Cairo',sans-serif;font-size:.85rem;outline:none}
 .ai-inputRow input:focus{border-color:var(--line2)}
 .ai-inputRow button{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-@media (max-width:480px){.ai-panel{left:10px;bottom:82px;width:calc(100vw - 20px)}.ai-float{left:14px}}
+@media (max-width:480px){.ai-panel{width:calc(100vw - 20px)}}
 
 /* ============ TOAST ============ */
 .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy3);border:1px solid var(--line2);border-radius:12px;padding:13px 24px;font-size:.86rem;font-weight:600;color:var(--gold2);box-shadow:var(--shadow-lg);transition:transform .3s;z-index:999;white-space:nowrap}
@@ -341,9 +340,6 @@ select.f-input{appearance:none;cursor:pointer}
     <a class="nav-phone" href="tel:+9647800094094">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 12l5 2v3a2 2 0 0 1-2.2 2A16.8 16.8 0 0 1 3 6.2 2 2 0 0 1 5 3z"/></svg>
       +964 780 009 4094</a>
-    <a class="nav-wa" href="https://wa.me/9647800094094" target="_blank">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.4-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.49s1.07 2.89 1.22 3.09c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2.01-1.42.25-.7.25-1.29.17-1.42-.07-.13-.27-.2-.57-.35zM12.05 21.79h-.01a9.8 9.8 0 0 1-5-1.37l-.36-.21-3.72.98.99-3.63-.23-.37a9.77 9.77 0 0 1-1.5-5.21c0-5.4 4.4-9.8 9.82-9.8a9.74 9.74 0 0 1 6.94 2.88 9.74 9.74 0 0 1 2.87 6.94c0 5.41-4.4 9.8-9.8 9.8zm8.34-18.13A11.7 11.7 0 0 0 12.05.22C5.55.22.26 5.5.26 12c0 2.08.54 4.1 1.58 5.89L.16 24l6.25-1.64a11.78 11.78 0 0 0 5.63 1.44h.01c6.5 0 11.79-5.29 11.79-11.79 0-3.15-1.23-6.11-3.45-8.35z"/></svg>
-      واتساب</a>
     <button class="nav-cart" onclick="openCart()">السلة</button>
   </div>
 </nav>
@@ -545,13 +541,10 @@ select.f-input{appearance:none;cursor:pointer}
   <div class="foot-bottom">© 2026 امباير — Central Platform Empire · جميع الحقوق محفوظة</div>
 </footer>
 
-<a class="wa-float" href="https://wa.me/9647800094094" target="_blank" aria-label="WhatsApp">
-  <svg viewBox="0 0 24 24" width="26" height="26" fill="#fff"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.4-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.49s1.07 2.89 1.22 3.09c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.76-.72 2.01-1.42.25-.7.25-1.29.17-1.42-.07-.13-.27-.2-.57-.35zM12.05 21.79h-.01a9.8 9.8 0 0 1-5-1.37l-.36-.21-3.72.98.99-3.63-.23-.37a9.77 9.77 0 0 1-1.5-5.21c0-5.4 4.4-9.8 9.82-9.8a9.74 9.74 0 0 1 6.94 2.88 9.74 9.74 0 0 1 2.87 6.94c0 5.41-4.4 9.8-9.8 9.8zm8.34-18.13A11.7 11.7 0 0 0 12.05.22C5.55.22.26 5.5.26 12c0 2.08.54 4.1 1.58 5.89L.16 24l6.25-1.64a11.78 11.78 0 0 0 5.63 1.44h.01c6.5 0 11.79-5.29 11.79-11.79 0-3.15-1.23-6.11-3.45-8.35z"/></svg>
-</a>
-
 <!-- ============ مساعد امباير الذكي ============ -->
 <button class="ai-float" id="aiFloatBtn" onclick="toggleAiChat()" aria-label="مساعد امباير">
-  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#1a2132" stroke-width="1.8"><path d="M12 3a7 7 0 0 0-7 7c0 2 .8 3.7 2 5l-.9 3.4L9.8 17A7 7 0 1 0 12 3z"/><circle cx="9" cy="10" r="1" fill="#1a2132"/><circle cx="12" cy="10" r="1" fill="#1a2132"/><circle cx="15" cy="10" r="1" fill="#1a2132"/></svg>
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#1a2132" stroke-width="1.8"><path d="M12 3a7 7 0 0 0-7 7c0 2 .8 3.7 2 5l-.9 3.4L9.8 17A7 7 0 1 0 12 3z"/><circle cx="9" cy="10" r="1" fill="#1a2132"/><circle cx="12" cy="10" r="1" fill="#1a2132"/><circle cx="15" cy="10" r="1" fill="#1a2132"/></svg>
+  <span>استفسر من هنا</span>
 </button>
 
 <div class="ai-panel" id="aiPanel">
@@ -642,7 +635,7 @@ select.f-input{appearance:none;cursor:pointer}
         <div class="success-title">تهانينا! تم اكتمال طلبك</div>
         <div class="success-sub">طلبك الآن قيد التجهيز</div>
         <div class="success-box">
-          سيتم إيصال طلبك عبر <strong>شركة برايم للتوصيل</strong><br>
+          سيتم إيصال طلبك عبر <strong>أرض الريام للتوصيل السريع</strong><br>
           <strong>بغداد:</strong> خلال 1 — 2 يوم<br>
           <strong>المحافظات:</strong> خلال 2 — 3 أيام<br>
           سيتواصل معك مندوبنا على رقم هاتفك لتأكيد الاستلام
@@ -968,7 +961,7 @@ function confirmOrder(){
 
 /* ===== CART SYSTEM ===== */
 const CART = [];
-const DELIVERY = 5000;
+const DELIVERY = 7000;
 const fmt = n => n.toLocaleString('en-US');
 
 function updateCartBadge(){
