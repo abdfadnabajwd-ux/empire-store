@@ -797,12 +797,14 @@ function render(){
     const badge = p.badge ? `<div class="badge${p.used?' used':''}">${p.badge}</div>` : '';
     const modelMatch = p.cat==='iPhone' ? p.name.match(/آيفون\s*(\d+)/) : null;
     const model = modelMatch ? modelMatch[1] : '';
+    const showBattery = model && parseInt(model) <= 14;
+    const specsList = showBattery ? [...p.specs, 'بطارية 100%'] : p.specs;
     return `<div class="card fade" data-cat="${p.cat}" data-model="${model}" onclick="openModal(${i})">
       <div class="card-img">${imgHtml}${badge}</div>
       <div class="card-body">
         <div class="brand">APPLE</div>
         <div class="pname">${p.name}</div>
-        <div class="specs">${p.specs.map(s=>`<span class="spec">${s}</span>`).join('')}</div>
+        <div class="specs">${specsList.map(s=>`<span class="spec">${s}</span>`).join('')}</div>
         <div class="card-foot">
           <div><span class="curr">دينار عراقي</span><span class="price">${p.price}</span></div>
           <button class="order-btn" onclick="event.stopPropagation();openModal(${i})">طلب</button>
