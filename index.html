@@ -673,7 +673,9 @@ select.f-input{appearance:none;cursor:pointer}
       <div class="qnum" id="mQty">1</div>
       <button class="qbtn" id="qtyPlus" onclick="changeQty(1)">+</button>
     </div>
-    <button class="m-confirm" id="mConfirm" onclick="confirmOrder()">أضف إلى السلة</button>
+    <div class="m-label">ملاحظات إضافية <span class="note">(اختياري)</span></div>
+    <textarea id="mNote" placeholder="أي تعليمات أو طلبات خاصة تريدها بهذا المنتج..." rows="2" style="width:100%;background:var(--navy2);border:1px solid var(--line);color:var(--white);border-radius:10px;padding:10px 12px;font-family:'Cairo',sans-serif;font-size:.85rem;resize:vertical;outline:none"></textarea>
+    <button class="m-confirm" id="mConfirm" onclick="confirmOrder()" style="margin-top:14px">أضف إلى السلة</button>
   </div>
 </div>
 
@@ -877,6 +879,7 @@ function openModal(i){
   mState = {name:p.name, basePrice:parseInt(p.price.replace(/,/g,'')), price:p.price, colors:p.colors?COLOR_SETS[p.colors]:null, selColor:null, qty:1, stock:p.stock||TOTAL_STOCK, showBox:BOX_ELIGIBLE_MODELS.includes(model), withBox:false};
   document.getElementById('mTitle').textContent = p.name;
   document.getElementById('mQty').textContent = '1';
+  document.getElementById('mNote').value = '';
   const cs = document.getElementById('mColorSection');
   if(mState.colors){
     cs.style.display='';
@@ -954,7 +957,8 @@ function confirmOrder(){
     color: (mState.colors&&mState.selColor!==null)?mState.colors[mState.selColor].name:null,
     withBox: mState.showBox ? mState.withBox : null,
     qty: mState.qty,
-    price: mState.basePrice + (mState.withBox ? BOX_FEE : 0)
+    price: mState.basePrice + (mState.withBox ? BOX_FEE : 0),
+    note: document.getElementById('mNote').value.trim() || null
   });
   updateCartBadge();
   closeModal();
@@ -1016,6 +1020,7 @@ function renderCart(){
     <div class="ci-info">
       <div class="ci-name">${it.name}</div>
       <div class="ci-meta">${it.color?'اللون: '+it.color+' · ':''}${it.withBox!==null&&it.withBox!==undefined?(it.withBox?'مع العلبة والكيبل · ':'بدون علبة · '):''}الكمية: ${it.qty}</div>
+      ${it.note?`<div class="ci-meta" style="font-style:italic;color:var(--gold2)">ملاحظة: ${it.note}</div>`:''}
     </div>
     <div class="ci-price">${fmt(it.price*it.qty)} د.ع</div>
   </div>`).join('');
@@ -1083,6 +1088,7 @@ function submitOrder(){
     if(it.color) msg += ' — '+it.color;
     if(it.withBox!==null&&it.withBox!==undefined) msg += it.withBox ? ' (مع علبة وكيبل)' : ' (بدون علبة)';
     msg += ' × '+it.qty+' = '+fmt(it.price*it.qty)+' د.ع\n';
+    if(it.note) msg += '   📝 ملاحظة: '+it.note+'\n';
   });
   msg += '━━━━━━━━━━━━━━━\n';
   msg += 'مجموع المنتجات: '+fmt(subtotal())+' د.ع\n';
@@ -1112,7 +1118,7 @@ function submitOrder(){
 /* ===== PDF RECEIPT (printable) ===== */
 function openReceipt(info){
   const items = (info&&info.items)?info.items:CART;
-  const rows = items.map((it,i)=>`<tr><td>${i+1}</td><td>${it.name}${it.color?' — '+it.color:''}${(it.withBox!==null&&it.withBox!==undefined)?(it.withBox?' (مع علبة وكيبل)':' (بدون علبة)'):''}</td><td>${it.qty}</td><td>${fmt(it.price)}</td><td>${fmt(it.price*it.qty)}</td></tr>`).join('');
+  const rows = items.map((it,i)=>`<tr><td>${i+1}</td><td>${it.name}${it.color?' — '+it.color:''}${(it.withBox!==null&&it.withBox!==undefined)?(it.withBox?' (مع علبة وكيبل)':' (بدون علبة)'):''}${it.note?`<br><small style="color:#888">ملاحظة: ${it.note}</small>`:''}</td><td>${it.qty}</td><td>${fmt(it.price)}</td><td>${fmt(it.price*it.qty)}</td></tr>`).join('');
   const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>طلب جاهز — امباير</title>
   <style>
     body{font-family:'Cairo','Segoe UI',sans-serif;color:#1d2030;padding:34px;max-width:700px;margin:0 auto}
