@@ -580,6 +580,14 @@ select.f-input{appearance:none;cursor:pointer}
         <div class="m-title">سلة التسوق</div>
       </div>
       <div class="modal-scroll" id="cartItems"></div>
+      <div id="couponBox" style="padding:0 20px;display:none">
+        <label class="f-label">كود الخصم</label>
+        <div style="display:flex;gap:8px">
+          <input class="f-input" id="couponInput" type="text" placeholder="اكتب الكود هنا" style="flex:1;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          <button class="btn-gold-sm" onclick="applyCoupon()" style="white-space:nowrap;padding:0 16px;border-radius:10px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:#1a2132;font-weight:700;font-family:'Cairo',sans-serif;cursor:pointer">تطبيق</button>
+        </div>
+        <div id="couponMsg" style="font-size:.78rem;margin-top:6px;min-height:1.1em"></div>
+      </div>
       <div class="cart-totals" id="cartTotals"></div>
       <button class="m-confirm" id="checkoutBtn" onclick="showCheckout()">إتمام الطلب</button>
     </div>
@@ -967,6 +975,22 @@ function confirmOrder(){
 
 /* ===== CART SYSTEM ===== */
 const CART = [];
+let DISCOUNT_CODES = [];
+let APPLIED_COUPON = null;
+
+async function initCloudCoupons(){
+  if(!FIREBASE_READY) return;
+  try{
+    const appMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const fsMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const app = appMod.initializeApp(FIREBASE_CONFIG);
+    const cdb = fsMod.getFirestore(app);
+    const q = fsMod.collection(cdb,'discountCodes');
+    fsMod.onSnapshot(q, snap=>{
+      DISCOUNT_CODES = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    });
+  }catch(e){ console.warn('تعذّر تحميل أكواد الخصم', e); }
+}
 const DELIVERY = 7000;
 const fmt = n => n.toLocaleString('en-US');
 
@@ -1000,21 +1024,57 @@ function removeItem(i){
   renderCart();
 }
 function subtotal(){ return CART.reduce((s,it)=>s+it.price*it.qty,0); }
+function discountAmount(){
+  if(!APPLIED_COUPON) return 0;
+  return Math.min(APPLIED_COUPON.amount, subtotal());
+}
+function grandTotal(){ return Math.max(0, subtotal() + DELIVERY - discountAmount()); }
 function totalsHTML(){
-  return `<div class="tot-row"><span>مجموع المنتجات</span><span>${fmt(subtotal())} د.ع</span></div>
-  <div class="tot-row"><span>أجور التوصيل</span><span>${fmt(DELIVERY)} د.ع</span></div>
-  <div class="tot-row grand"><span>المجموع النهائي</span><span>${fmt(subtotal()+DELIVERY)} د.ع</span></div>`;
+  let html = `<div class="tot-row"><span>مجموع المنتجات</span><span>${fmt(subtotal())} د.ع</span></div>`;
+  if(APPLIED_COUPON){
+    html += `<div class="tot-row" style="color:var(--gold2)"><span>خصم (${APPLIED_COUPON.code}) <span onclick="removeCoupon()" style="cursor:pointer;text-decoration:underline;margin-right:6px">إزالة</span></span><span>− ${fmt(discountAmount())} د.ع</span></div>`;
+  }
+  html += `<div class="tot-row"><span>أجور التوصيل</span><span>${fmt(DELIVERY)} د.ع</span></div>
+  <div class="tot-row grand"><span>المجموع النهائي</span><span>${fmt(grandTotal())} د.ع</span></div>`;
+  return html;
+}
+function applyCoupon(){
+  const input = document.getElementById('couponInput');
+  const msg = document.getElementById('couponMsg');
+  const code = input.value.trim().toUpperCase();
+  if(!code){ msg.textContent=''; return; }
+  const found = DISCOUNT_CODES.find(c=>(c.code||'').toUpperCase()===code);
+  if(found){
+    APPLIED_COUPON = {code: found.code, amount: Number(found.amount)||0};
+    msg.style.color = '#6fbf87';
+    msg.textContent = 'تم تطبيق الخصم بنجاح ✓';
+  } else {
+    APPLIED_COUPON = null;
+    msg.style.color = '#e0645f';
+    msg.textContent = 'كود الخصم غير صالح';
+  }
+  document.getElementById('cartTotals').innerHTML = totalsHTML();
+  document.getElementById('checkoutTotals').innerHTML = totalsHTML();
+}
+function removeCoupon(){
+  APPLIED_COUPON = null;
+  document.getElementById('couponInput').value = '';
+  document.getElementById('couponMsg').textContent = '';
+  document.getElementById('cartTotals').innerHTML = totalsHTML();
+  document.getElementById('checkoutTotals').innerHTML = totalsHTML();
 }
 function renderCart(){
   const box = document.getElementById('cartItems');
   const tot = document.getElementById('cartTotals');
   const btn = document.getElementById('checkoutBtn');
+  const couponBox = document.getElementById('couponBox');
   if(!CART.length){
     box.innerHTML = '<div class="cart-empty">سلة التسوق فارغة</div>';
-    tot.innerHTML=''; btn.style.display='none';
+    tot.innerHTML=''; btn.style.display='none'; couponBox.style.display='none';
     return;
   }
   btn.style.display='';
+  couponBox.style.display='';
   box.innerHTML = CART.map((it,i)=>`<div class="cart-item">
     <button class="ci-del" onclick="removeItem(${i})">✕</button>
     <div class="ci-info">
@@ -1092,8 +1152,9 @@ function submitOrder(){
   });
   msg += '━━━━━━━━━━━━━━━\n';
   msg += 'مجموع المنتجات: '+fmt(subtotal())+' د.ع\n';
+  if(APPLIED_COUPON) msg += 'خصم ('+APPLIED_COUPON.code+'): − '+fmt(discountAmount())+' د.ع\n';
   msg += 'أجور التوصيل: '+fmt(DELIVERY)+' د.ع\n';
-  msg += 'المجموع النهائي: '+fmt(subtotal()+DELIVERY)+' د.ع\n';
+  msg += 'المجموع النهائي: '+fmt(grandTotal())+' د.ع\n';
   msg += 'التاريخ: ' + dateStr;
 
   // إرسال فوري إلى تيليجرام صاحب المتجر (لا يفتح أي شيء عند الزبون)
@@ -1106,12 +1167,13 @@ function submitOrder(){
     }).catch(()=>{});
   } catch(e) {}
 
-  LAST_ORDER = {invoiceNo,name,gov,area,mark,phone,phone2,dateStr,items:CART.map(x=>({...x}))};
+  LAST_ORDER = {invoiceNo,name,gov,area,mark,phone,phone2,dateStr,items:CART.map(x=>({...x})),coupon:APPLIED_COUPON?{...APPLIED_COUPON}:null,discount:discountAmount()};
 
   // عرض شاشة النجاح
   document.getElementById('checkoutView').style.display='none';
   document.getElementById('successView').style.display='';
   CART.length = 0;
+  APPLIED_COUPON = null;
   updateCartBadge();
 }
 
@@ -1145,8 +1207,9 @@ function openReceipt(info){
   <table><tr><th>#</th><th>المنتج</th><th>الكمية</th><th>سعر المفرد</th><th>المجموع</th></tr>${rows}</table>
   <div class="totals">
     مجموع المنتجات: ${fmt(items.reduce((s,it)=>s+it.price*it.qty,0))} د.ع<br>
+    ${info.coupon?`خصم (${info.coupon.code}): − ${fmt(info.discount||0)} د.ع<br>`:''}
     أجور التوصيل: ${fmt(DELIVERY)} د.ع<br>
-    <span class="grand">المجموع النهائي: ${fmt(items.reduce((s,it)=>s+it.price*it.qty,0)+DELIVERY)} د.ع</span>
+    <span class="grand">المجموع النهائي: ${fmt(items.reduce((s,it)=>s+it.price*it.qty,0)+DELIVERY-(info.discount||0))} د.ع</span>
   </div>
   <div class="foot">امباير — Central Platform Empire · بغداد، الأعظمية · +964 780 009 4094</div>
   <script>setTimeout(()=>window.print(),600)<\/script>
@@ -1364,6 +1427,7 @@ async function sendAiMessage(){
 
 initReviews();
 initCloudProducts();
+initCloudCoupons();
 
 render();
 observeFades();

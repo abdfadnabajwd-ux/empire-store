@@ -107,23 +107,45 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
   </div>
 
   <div class="wrap">
-    <div class="summary">
-      <div class="stat"><b id="statTotal">0</b><span>إجمالي المنتجات</span></div>
-      <div class="stat"><b id="statCats">0</b><span>الفئات</span></div>
+    <div class="tools" style="margin-bottom:18px">
+      <button class="btn btn-gold btn-sm" id="tabProductsBtn" onclick="switchTab('products')">المنتجات</button>
+      <button class="btn btn-ghost btn-sm" id="tabCouponsBtn" onclick="switchTab('coupons')">أكواد الخصم</button>
     </div>
 
-    <div class="tools">
-      <button class="btn btn-gold" id="addBtn">+ إضافة منتج جديد</button>
-      <button class="btn btn-ghost" id="importBtn">استيراد كتالوج امباير الحالي</button>
+    <div id="productsTab">
+      <div class="summary">
+        <div class="stat"><b id="statTotal">0</b><span>إجمالي المنتجات</span></div>
+        <div class="stat"><b id="statCats">0</b><span>الفئات</span></div>
+      </div>
+
+      <div class="tools">
+        <button class="btn btn-gold" id="addBtn">+ إضافة منتج جديد</button>
+        <button class="btn btn-ghost" id="importBtn">استيراد كتالوج امباير الحالي</button>
+      </div>
+
+      <div class="searchBox">
+        <input type="text" id="searchInput" placeholder="ابحث عن منتج...">
+      </div>
+
+      <div id="plist" class="plist"></div>
+      <div id="emptyState" class="empty" style="display:none">
+        ما عندك منتجات بعد. اضغط "إضافة منتج جديد" أو "استيراد كتالوج امباير الحالي" لتبدأ.
+      </div>
     </div>
 
-    <div class="searchBox">
-      <input type="text" id="searchInput" placeholder="ابحث عن منتج...">
-    </div>
+    <div id="couponsTab" style="display:none">
+      <div class="summary">
+        <div class="stat"><b id="statCoupons">0</b><span>إجمالي الأكواد</span></div>
+      </div>
 
-    <div id="plist" class="plist"></div>
-    <div id="emptyState" class="empty" style="display:none">
-      ما عندك منتجات بعد. اضغط "إضافة منتج جديد" أو "استيراد كتالوج امباير الحالي" لتبدأ.
+      <div class="tools">
+        <button class="btn btn-gold" id="addCouponBtn">+ إنشاء كود خصم جديد</button>
+      </div>
+
+      <div id="couponList" class="plist"></div>
+      <div id="couponEmptyState" class="empty" style="display:none">
+        ما عندك أكواد خصم بعد. اضغط "إنشاء كود خصم جديد" لتبدأ.
+      </div>
     </div>
   </div>
 </div>
@@ -222,6 +244,45 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
   </div>
 </div>
 
+<!-- ===== فورم إنشاء كود خصم ===== -->
+<div class="overlay" id="couponFormOverlay">
+  <div class="sheet">
+    <div class="sheetTop">
+      <h2>إنشاء كود خصم</h2>
+      <button class="closeX" id="closeCouponForm">✕</button>
+    </div>
+
+    <div class="field">
+      <label>الكود (بالإنكليزي أو أرقام)</label>
+      <input type="text" id="cCode" placeholder="EMPIRE20" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+    </div>
+
+    <div class="field">
+      <label>مبلغ الخصم (دينار عراقي)</label>
+      <input type="number" id="cAmount" placeholder="20000" min="0">
+    </div>
+
+    <div id="couponFormError" style="color:var(--danger);font-size:.82rem;margin-bottom:8px;min-height:1.1em"></div>
+
+    <div class="formActions">
+      <button class="btn btn-ghost" id="cancelCouponForm">إلغاء</button>
+      <button class="btn btn-gold" id="saveCouponForm">حفظ الكود</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== تأكيد حذف كود الخصم ===== -->
+<div class="overlay" id="couponDelOverlay">
+  <div class="sheet" style="text-align:center">
+    <h2 style="margin-bottom:10px">حذف كود الخصم؟</h2>
+    <p class="small" style="margin-bottom:18px">هذا الإجراء لا يمكن التراجع عنه، ولن يعمل الكود بعدها بالموقع.</p>
+    <div class="formActions">
+      <button class="btn btn-ghost" id="cancelCouponDel">إلغاء</button>
+      <button class="btn btn-danger" style="border-color:var(--danger)" id="confirmCouponDel">نعم، احذف</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -290,10 +351,19 @@ const CAT_LABELS = {iPhone:'آيفون', iPad:'آيباد', Mac:'ماك بوك',
 
 let auth, db, fsMod, authMod;
 let products = []; // {id, ...fields}
+let coupons = []; // {id, code, amount}
 let editingId = null;
 let pendingDelId = null;
+let pendingCouponDelId = null;
 let imgSource = 'lib'; // 'lib' or 'upload'
 let uploadedImgUrl = null; // holds base64 data URL for uploaded images
+
+function switchTab(tab){
+  document.getElementById('productsTab').style.display = tab==='products' ? '' : 'none';
+  document.getElementById('couponsTab').style.display = tab==='coupons' ? '' : 'none';
+  document.getElementById('tabProductsBtn').className = tab==='products' ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+  document.getElementById('tabCouponsBtn').className = tab==='coupons' ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+}
 
 function showToast(msg){
   const t = document.getElementById('toast');
@@ -315,6 +385,7 @@ async function initFirebase(){
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('dash').style.display='block';
       listenProducts();
+      listenCoupons();
     } else {
       document.getElementById('loginScreen').style.display='flex';
       document.getElementById('dash').style.display='none';
@@ -352,6 +423,76 @@ function listenProducts(){
     showToast('تعذّر تحميل المنتجات');
   });
 }
+
+/* ===== أكواد الخصم ===== */
+function listenCoupons(){
+  const q = fsMod.collection(db,'discountCodes');
+  fsMod.onSnapshot(q, snap=>{
+    coupons = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderCoupons();
+  }, err=>{
+    console.warn(err);
+    showToast('تعذّر تحميل أكواد الخصم');
+  });
+}
+function renderCoupons(){
+  document.getElementById('statCoupons').textContent = coupons.length;
+  document.getElementById('couponEmptyState').style.display = coupons.length ? 'none' : 'block';
+  document.getElementById('couponList').innerHTML = coupons.map(c=>`<div class="pcard">
+    <div class="ph" style="display:flex;align-items:center;justify-content:center;font-size:1.3rem">🏷️</div>
+    <div class="pinfo">
+      <div class="pn">${escapeHtml(c.code)}</div>
+      <div class="pp">خصم ${Number(c.amount).toLocaleString('en-US')} د.ع</div>
+    </div>
+    <div class="pacts">
+      <button class="btn btn-danger btn-sm" onclick="openCouponDelete('${c.id}')">حذف</button>
+    </div>
+  </div>`).join('');
+}
+document.getElementById('addCouponBtn').addEventListener('click', ()=>{
+  document.getElementById('cCode').value = '';
+  document.getElementById('cAmount').value = '';
+  document.getElementById('couponFormError').textContent = '';
+  document.getElementById('couponFormOverlay').classList.add('open');
+});
+document.getElementById('closeCouponForm').addEventListener('click', ()=>document.getElementById('couponFormOverlay').classList.remove('open'));
+document.getElementById('cancelCouponForm').addEventListener('click', ()=>document.getElementById('couponFormOverlay').classList.remove('open'));
+document.getElementById('saveCouponForm').addEventListener('click', async ()=>{
+  const code = document.getElementById('cCode').value.trim().toUpperCase();
+  const amount = Number(document.getElementById('cAmount').value);
+  const errEl = document.getElementById('couponFormError');
+  if(!code || !amount || amount<=0){ errEl.textContent = 'اكتب كود صحيح ومبلغ خصم أكبر من صفر'; return; }
+  if(coupons.some(c=>c.code.toUpperCase()===code)){ errEl.textContent = 'هذا الكود موجود مسبقاً'; return; }
+  const btn = document.getElementById('saveCouponForm');
+  btn.disabled = true; btn.textContent = 'جارٍ الحفظ...';
+  try{
+    await fsMod.addDoc(fsMod.collection(db,'discountCodes'), {code, amount, createdAt: Date.now()});
+    showToast('تم إنشاء كود الخصم');
+    document.getElementById('couponFormOverlay').classList.remove('open');
+  }catch(e){
+    errEl.textContent = 'تعذّر الحفظ، حاول مرة أخرى';
+  }
+  btn.disabled = false; btn.textContent = 'حفظ الكود';
+});
+function openCouponDelete(id){
+  pendingCouponDelId = id;
+  document.getElementById('couponDelOverlay').classList.add('open');
+}
+document.getElementById('cancelCouponDel').addEventListener('click', ()=>{
+  document.getElementById('couponDelOverlay').classList.remove('open');
+  pendingCouponDelId = null;
+});
+document.getElementById('confirmCouponDel').addEventListener('click', async ()=>{
+  if(!pendingCouponDelId) return;
+  try{
+    await fsMod.deleteDoc(fsMod.doc(db,'discountCodes',pendingCouponDelId));
+    showToast('تم حذف الكود');
+  }catch(e){
+    showToast('تعذّر الحذف');
+  }
+  document.getElementById('couponDelOverlay').classList.remove('open');
+  pendingCouponDelId = null;
+});
 
 function renderList(){
   const wrap = document.getElementById('plist');
