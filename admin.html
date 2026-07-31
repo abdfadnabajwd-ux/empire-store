@@ -154,7 +154,45 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
         <label>تاريخ آخر تحديث للأسعار (يظهر بالموقع)</label>
         <input type="text" id="sPriceDate" placeholder="مثال: 12 يونيو 2026">
       </div>
-      <button class="btn btn-gold" id="saveSettingsBtn">حفظ الإعدادات</button>
+
+      <div class="field">
+        <label>أخبار الشريط العلوي (سطر لكل خبر)</label>
+        <textarea id="sTicker" rows="6" placeholder="🚚 توصيل مجاني لجميع المحافظات..."></textarea>
+      </div>
+
+      <h2 style="margin:22px 0 12px;font-size:1rem;color:var(--gold2)">الواجهة الإعلانية (أعلى الموقع)</h2>
+
+      <div class="field">
+        <label>الشارة العلوية الصغيرة</label>
+        <input type="text" id="sHeroKicker" placeholder="CENTRAL PLATFORM EMPIRE">
+      </div>
+      <div class="field">
+        <label>السطر الأول من العنوان</label>
+        <input type="text" id="sHeroTitle1" placeholder="آيفون 17 برو ماكس">
+      </div>
+      <div class="field">
+        <label>السطر الثاني من العنوان (بالذهبي)</label>
+        <input type="text" id="sHeroTitle2" placeholder="وصل حصرياً إلى امباير">
+      </div>
+      <div class="field">
+        <label>النص التعريفي</label>
+        <textarea id="sHeroLead" rows="3" placeholder="أحدث إصدارات Apple الأصلية..."></textarea>
+      </div>
+      <div class="field">
+        <label>شارة السعر (فوق الصورة)</label>
+        <input type="text" id="sHeroTag" placeholder="يبدأ من 1,838,000 د.ع">
+      </div>
+      <div class="field">
+        <label>صورة الواجهة الإعلانية (اختياري)</label>
+        <div class="imgPreviewRow">
+          <img id="sHeroImgPreview" src="" alt="" style="display:none">
+        </div>
+        <input type="file" id="sHeroImgFile" accept="image/*">
+        <div class="small" id="sHeroImgStatus">اتركه فارغاً للإبقاء على الصورة الافتراضية بالموقع</div>
+        <button type="button" class="btn btn-ghost btn-sm" id="sHeroImgClear" style="margin-top:8px">إعادة الصورة الافتراضية</button>
+      </div>
+
+      <button class="btn btn-gold" id="saveSettingsBtn" style="margin-top:6px">حفظ الإعدادات</button>
       <div id="settingsMsg" style="font-size:.82rem;margin-top:10px;min-height:1.1em"></div>
     </div>
   </div>
@@ -508,21 +546,75 @@ document.getElementById('confirmCouponDel').addEventListener('click', async ()=>
 });
 
 /* ===== إعدادات الموقع ===== */
+let heroImgPending; // undefined = بدون تغيير, '' = رجوع للافتراضي, dataURL = صورة جديدة
 function listenSettings(){
   const ref = fsMod.doc(db,'settings','general');
   fsMod.onSnapshot(ref, snap=>{
+    heroImgPending = undefined;
+    document.getElementById('sHeroImgFile').value = '';
+    document.getElementById('sHeroImgStatus').textContent = 'اتركه فارغاً للإبقاء على الصورة الافتراضية بالموقع';
     if(!snap.exists()) return;
     const data = snap.data();
     if(data.priceUpdateDate) document.getElementById('sPriceDate').value = data.priceUpdateDate;
+    if(Array.isArray(data.newsTicker)) document.getElementById('sTicker').value = data.newsTicker.join('\n');
+    document.getElementById('sHeroKicker').value = data.heroKicker || '';
+    document.getElementById('sHeroTitle1').value = data.heroTitle1 || '';
+    document.getElementById('sHeroTitle2').value = data.heroTitle2 || '';
+    document.getElementById('sHeroLead').value = data.heroLead || '';
+    document.getElementById('sHeroTag').value = data.heroTag || '';
+    const preview = document.getElementById('sHeroImgPreview');
+    if(data.heroImg){
+      preview.src = data.heroImg;
+      preview.style.display = 'block';
+    } else {
+      preview.src = '';
+      preview.style.display = 'none';
+    }
   });
 }
+document.getElementById('sHeroImgFile').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('sHeroImgStatus');
+  const preview = document.getElementById('sHeroImgPreview');
+  statusEl.textContent = 'جارٍ تجهيز الصورة...';
+  try{
+    const dataUrl = await resizeImageToDataUrl(file, 700, 0.75);
+    heroImgPending = dataUrl;
+    preview.src = dataUrl;
+    preview.style.display = 'block';
+    const kb = Math.round(dataUrl.length * 0.75 / 1024);
+    statusEl.textContent = `تم تجهيز الصورة ✓ (${kb} كيلوبايت) — لن تُحفظ إلا بعد "حفظ الإعدادات"`;
+  }catch(err){
+    statusEl.textContent = 'تعذّر معالجة الصورة، جرب صورة ثانية';
+    heroImgPending = undefined;
+  }
+});
+document.getElementById('sHeroImgClear').addEventListener('click', ()=>{
+  heroImgPending = '';
+  document.getElementById('sHeroImgFile').value = '';
+  document.getElementById('sHeroImgPreview').src = '';
+  document.getElementById('sHeroImgPreview').style.display = 'none';
+  document.getElementById('sHeroImgStatus').textContent = 'راح ترجع الصورة الافتراضية بعد الحفظ';
+});
 document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
   const val = document.getElementById('sPriceDate').value.trim();
+  const tickerLines = document.getElementById('sTicker').value.split('\n').map(s=>s.trim()).filter(Boolean);
   const msg = document.getElementById('settingsMsg');
   const btn = document.getElementById('saveSettingsBtn');
   btn.disabled = true; btn.textContent = 'جارٍ الحفظ...';
+  const data = {
+    priceUpdateDate: val,
+    newsTicker: tickerLines,
+    heroKicker: document.getElementById('sHeroKicker').value.trim(),
+    heroTitle1: document.getElementById('sHeroTitle1').value.trim(),
+    heroTitle2: document.getElementById('sHeroTitle2').value.trim(),
+    heroLead: document.getElementById('sHeroLead').value.trim(),
+    heroTag: document.getElementById('sHeroTag').value.trim()
+  };
+  if(heroImgPending !== undefined) data.heroImg = heroImgPending;
   try{
-    await fsMod.setDoc(fsMod.doc(db,'settings','general'), {priceUpdateDate: val}, {merge:true});
+    await fsMod.setDoc(fsMod.doc(db,'settings','general'), data, {merge:true});
     msg.style.color = '#6fbf87';
     msg.textContent = 'تم حفظ الإعدادات بنجاح ✓';
   }catch(e){
