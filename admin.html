@@ -110,6 +110,7 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
     <div class="tools" style="margin-bottom:18px">
       <button class="btn btn-gold btn-sm" id="tabProductsBtn" onclick="switchTab('products')">المنتجات</button>
       <button class="btn btn-ghost btn-sm" id="tabCouponsBtn" onclick="switchTab('coupons')">أكواد الخصم</button>
+      <button class="btn btn-ghost btn-sm" id="tabSettingsBtn" onclick="switchTab('settings')">إعدادات الموقع</button>
     </div>
 
     <div id="productsTab">
@@ -146,6 +147,15 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
       <div id="couponEmptyState" class="empty" style="display:none">
         ما عندك أكواد خصم بعد. اضغط "إنشاء كود خصم جديد" لتبدأ.
       </div>
+    </div>
+
+    <div id="settingsTab" style="display:none">
+      <div class="field" style="margin-top:6px">
+        <label>تاريخ آخر تحديث للأسعار (يظهر بالموقع)</label>
+        <input type="text" id="sPriceDate" placeholder="مثال: 12 يونيو 2026">
+      </div>
+      <button class="btn btn-gold" id="saveSettingsBtn">حفظ الإعدادات</button>
+      <div id="settingsMsg" style="font-size:.82rem;margin-top:10px;min-height:1.1em"></div>
     </div>
   </div>
 </div>
@@ -361,8 +371,10 @@ let uploadedImgUrl = null; // holds base64 data URL for uploaded images
 function switchTab(tab){
   document.getElementById('productsTab').style.display = tab==='products' ? '' : 'none';
   document.getElementById('couponsTab').style.display = tab==='coupons' ? '' : 'none';
+  document.getElementById('settingsTab').style.display = tab==='settings' ? '' : 'none';
   document.getElementById('tabProductsBtn').className = tab==='products' ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
   document.getElementById('tabCouponsBtn').className = tab==='coupons' ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+  document.getElementById('tabSettingsBtn').className = tab==='settings' ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
 }
 
 function showToast(msg){
@@ -386,6 +398,7 @@ async function initFirebase(){
       document.getElementById('dash').style.display='block';
       listenProducts();
       listenCoupons();
+      listenSettings();
     } else {
       document.getElementById('loginScreen').style.display='flex';
       document.getElementById('dash').style.display='none';
@@ -492,6 +505,31 @@ document.getElementById('confirmCouponDel').addEventListener('click', async ()=>
   }
   document.getElementById('couponDelOverlay').classList.remove('open');
   pendingCouponDelId = null;
+});
+
+/* ===== إعدادات الموقع ===== */
+function listenSettings(){
+  const ref = fsMod.doc(db,'settings','general');
+  fsMod.onSnapshot(ref, snap=>{
+    if(!snap.exists()) return;
+    const data = snap.data();
+    if(data.priceUpdateDate) document.getElementById('sPriceDate').value = data.priceUpdateDate;
+  });
+}
+document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
+  const val = document.getElementById('sPriceDate').value.trim();
+  const msg = document.getElementById('settingsMsg');
+  const btn = document.getElementById('saveSettingsBtn');
+  btn.disabled = true; btn.textContent = 'جارٍ الحفظ...';
+  try{
+    await fsMod.setDoc(fsMod.doc(db,'settings','general'), {priceUpdateDate: val}, {merge:true});
+    msg.style.color = '#6fbf87';
+    msg.textContent = 'تم حفظ الإعدادات بنجاح ✓';
+  }catch(e){
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'تعذّر الحفظ، حاول مرة أخرى';
+  }
+  btn.disabled = false; btn.textContent = 'حفظ الإعدادات';
 });
 
 function renderList(){

@@ -420,7 +420,7 @@ select.f-input{appearance:none;cursor:pointer}
   <!-- 8) PRICE UPDATE -->
   <div class="price-update fade">
     <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
-    آخر تحديث للأسعار: <strong>12 يونيو 2026</strong>
+    آخر تحديث للأسعار: <strong id="priceUpdateDate">12 يونيو 2026</strong>
   </div>
 
   <div class="filters fade">
@@ -991,6 +991,24 @@ async function initCloudCoupons(){
     });
   }catch(e){ console.warn('تعذّر تحميل أكواد الخصم', e); }
 }
+async function initCloudSettings(){
+  if(!FIREBASE_READY) return;
+  try{
+    const appMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const fsMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const app = appMod.initializeApp(FIREBASE_CONFIG);
+    const sdb = fsMod.getFirestore(app);
+    const ref = fsMod.doc(sdb,'settings','general');
+    fsMod.onSnapshot(ref, snap=>{
+      if(!snap.exists()) return;
+      const data = snap.data();
+      if(data.priceUpdateDate){
+        const el = document.getElementById('priceUpdateDate');
+        if(el) el.textContent = data.priceUpdateDate;
+      }
+    });
+  }catch(e){ console.warn('تعذّر تحميل الإعدادات', e); }
+}
 const DELIVERY = 7000;
 const fmt = n => n.toLocaleString('en-US');
 
@@ -1428,6 +1446,7 @@ async function sendAiMessage(){
 initReviews();
 initCloudProducts();
 initCloudCoupons();
+initCloudSettings();
 
 render();
 observeFades();
