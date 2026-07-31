@@ -700,7 +700,13 @@ function resizeImageToDataUrl(file, maxWidth, quality){
         canvas.height = img.height * scale;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        if(file.type === 'image/png'){
+          /* JPEG لا يدعم الشفافية — نستخدم WebP للحفاظ عليها بحجم صغير، والمتصفح الذي لا يدعم ترميز WebP يرجّع PNG تلقائياً */
+          const out = canvas.toDataURL('image/webp', quality);
+          resolve(out.startsWith('data:image/webp') ? out : canvas.toDataURL('image/png'));
+        } else {
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        }
       };
       img.onerror = reject;
       img.src = reader.result;
