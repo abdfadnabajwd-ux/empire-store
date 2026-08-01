@@ -1,0 +1,55 @@
+// ============================================================
+// قواعد أمان Firestore لمتجر امباير
+//
+// كيف تفعّلها:
+//   Firebase Console ← Firestore Database ← Rules
+//   الصق المحتوى أدناه ثم اضغط Publish
+//
+// ملاحظة: إذا عندك قواعد إضافية لمجموعات ثانية، ادمجها مع هذه
+// بدل ما تستبدلها بالكامل.
+// ============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // المنتجات: الكل يقرأ، والتعديل من لوحة التحكم فقط
+    match /products/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // أكواد الخصم: الموقع يقرأها ليتحقق منها، والإنشاء من لوحة التحكم فقط
+    match /discountCodes/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // إعدادات الموقع (تاريخ الأسعار، شريط الأخبار، الواجهة الإعلانية)
+    match /settings/{doc} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // التقييمات: الزبون يكتب تقييمه، والحذف من لوحة التحكم فقط
+    match /reviews/{doc} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null;
+    }
+
+    // الإحصائيات: الموقع يزيد العدّادات بدون تسجيل دخول،
+    // والقراءة محصورة بلوحة التحكم حتى لا يشوف أحد أرقام المتجر
+    match /analytics/{day} {
+      allow read: if request.auth != null;
+      allow create, update: if true;
+      allow delete: if request.auth != null;
+    }
+
+    // الطلبات: الزبون ينشئ طلبه فقط، وقراءتها وتعديلها من لوحة التحكم
+    match /orders/{doc} {
+      allow read, update, delete: if request.auth != null;
+      allow create: if true;
+    }
+  }
+}

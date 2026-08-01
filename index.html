@@ -910,6 +910,7 @@ function openModal(i){
   updateQtyUI();
   document.getElementById('modalOverlay').classList.add('open');
   document.body.style.overflow='hidden';
+  anaBumpProduct(p.name);
 }
 function setBoxOption(withBox, btn){
   mState.withBox = withBox;
@@ -972,6 +973,7 @@ function confirmOrder(){
   updateCartBadge();
   closeModal();
   showToast('تمت الإضافة إلى السلة');
+  anaBump({addToCart:1});
 }
 
 /* ===== CART SYSTEM ===== */
@@ -1024,6 +1026,107 @@ async function initCloudSettings(){
     });
   }catch(e){ console.warn('تعذّر تحميل الإعدادات', e); }
 }
+
+/* ============================================================
+   إحصائيات الموقع
+   تُجمَّع بمستند واحد لكل يوم داخل مجموعة analytics، وتُعرض
+   بلوحة التحكم. ما نخزّن أي بيانات شخصية عن الزائر — بس أرقام.
+   أي خطأ هنا ما يأثر على المتجر لأن كل شي داخل try/catch.
+   ============================================================ */
+let _anaCtx = null;
+function anaDb(){
+  if(!FIREBASE_READY) return Promise.resolve(null);
+  if(!_anaCtx){
+    _anaCtx = (async ()=>{
+      const appMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const fsMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const app = appMod.initializeApp(FIREBASE_CONFIG);
+      return {fsMod, db: fsMod.getFirestore(app)};
+    })().catch(e=>{ _anaCtx = null; return null; });
+  }
+  return _anaCtx;
+}
+function anaToday(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+/* يزيد عدّادات اليوم الحالي — مثال: anaBump({visits:1}) */
+async function anaBump(fields){
+  try{
+    const ctx = await anaDb();
+    if(!ctx) return;
+    const day = anaToday();
+    const data = {date: day};
+    Object.keys(fields).forEach(k=>{ data[k] = ctx.fsMod.increment(fields[k]); });
+    await ctx.fsMod.setDoc(ctx.fsMod.doc(ctx.db,'analytics',day), data, {merge:true});
+  }catch(e){}
+}
+/* يسجّل مشاهدة منتج داخل خريطة productViews */
+async function anaBumpProduct(name){
+  try{
+    const ctx = await anaDb();
+    if(!ctx) return;
+    const key = String(name||'').replace(/[.\/\[\]*`~]/g,' ').replace(/\s+/g,' ').trim().slice(0,90);
+    if(!key) return;
+    const day = anaToday();
+    await ctx.fsMod.setDoc(ctx.fsMod.doc(ctx.db,'analytics',day),
+      {date: day, productViews: {[key]: ctx.fsMod.increment(1)}}, {merge:true});
+  }catch(e){}
+}
+/* يحفظ الطلب المكتمل بمجموعة orders ويزيد عدّادات المبيعات */
+async function anaTrackOrder(order){
+  anaBump({orders:1, revenue: order.total});
+  try{
+    const ctx = await anaDb();
+    if(!ctx) return;
+    await ctx.fsMod.addDoc(ctx.fsMod.collection(ctx.db,'orders'), {...order, createdAt: Date.now()});
+  }catch(e){}
+}
+
+/* ===== قياس الوقت الذي يقضيه الزائر (الوقت الفعّال فقط) ===== */
+let anaActiveMs = 0, anaSentSec = 0, anaLastTick = Date.now(), anaSessionCounted = false;
+function anaTick(){
+  if(document.visibilityState === 'visible') anaActiveMs += Date.now() - anaLastTick;
+  anaLastTick = Date.now();
+}
+function anaFlushDuration(){
+  anaTick();
+  const sec = Math.floor(anaActiveMs/1000);
+  const delta = sec - anaSentSec;
+  if(delta < 5) return; // ما نرسل كتابات صغيرة بلا فائدة
+  const fields = {durationTotal: delta};
+  if(!anaSessionCounted){ fields.durationCount = 1; anaSessionCounted = true; }
+  anaSentSec = sec;
+  anaBump(fields);
+}
+function initAnalytics(){
+  if(!FIREBASE_READY) return;
+  let isNewVisitor = false;
+  try{
+    if(!localStorage.getItem('empVisitorId')){
+      localStorage.setItem('empVisitorId', 'v'+Date.now().toString(36)+Math.random().toString(36).slice(2,8));
+      isNewVisitor = true;
+    }
+  }catch(e){}
+  let isNewSession = true;
+  try{
+    isNewSession = !sessionStorage.getItem('empSessionOn');
+    if(isNewSession) sessionStorage.setItem('empSessionOn','1');
+  }catch(e){}
+  if(isNewSession){
+    const f = {visits:1};
+    if(isNewVisitor) f.newVisitors = 1;
+    anaBump(f);
+  }
+  anaLastTick = Date.now();
+  document.addEventListener('visibilitychange', ()=>{
+    anaTick();
+    if(document.visibilityState === 'hidden') anaFlushDuration();
+  });
+  window.addEventListener('pagehide', anaFlushDuration);
+  setInterval(anaFlushDuration, 45000);
+}
+
 const DELIVERY = 7000;
 const fmt = n => n.toLocaleString('en-US');
 
@@ -1201,6 +1304,18 @@ function submitOrder(){
   } catch(e) {}
 
   LAST_ORDER = {invoiceNo,name,gov,area,mark,phone,phone2,dateStr,items:CART.map(x=>({...x})),coupon:APPLIED_COUPON?{...APPLIED_COUPON}:null,discount:discountAmount()};
+
+  // حفظ الطلب بلوحة التحكم + عدّادات المبيعات
+  anaTrackOrder({
+    invoiceNo, name, phone, phone2, gov, area, mark, dateStr,
+    items: CART.map(it=>({name:it.name, color:it.color||null, qty:it.qty, price:it.price})),
+    itemCount: CART.reduce((s,it)=>s+it.qty,0),
+    subtotal: subtotal(),
+    discount: discountAmount(),
+    couponCode: APPLIED_COUPON ? APPLIED_COUPON.code : null,
+    delivery: DELIVERY,
+    total: grandTotal()
+  });
 
   // عرض شاشة النجاح
   document.getElementById('checkoutView').style.display='none';
@@ -1462,6 +1577,7 @@ initReviews();
 initCloudProducts();
 initCloudCoupons();
 initCloudSettings();
+initAnalytics();
 
 render();
 observeFades();

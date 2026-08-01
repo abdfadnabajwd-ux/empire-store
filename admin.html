@@ -76,6 +76,29 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:.88rem}
 .small{font-size:.76rem;color:var(--muted)}
+/* ===== الإحصائيات ===== */
+.agrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:18px}
+@media(max-width:520px){.agrid{grid-template-columns:repeat(2,1fr)}}
+.acard{background:var(--navy2);border:1px solid var(--line);border-radius:12px;padding:13px 9px;text-align:center}
+.acard b{display:block;font-size:1.12rem;color:var(--gold2);margin-bottom:4px;word-break:break-word}
+.acard span{font-size:.68rem;color:var(--grey);line-height:1.5}
+.secTitle{font-size:.92rem;color:var(--gold2);font-weight:700;margin:22px 0 10px}
+.chart{display:flex;align-items:flex-end;gap:4px;height:145px;background:var(--navy2);border:1px solid var(--line);border-radius:12px;padding:12px 10px 8px;overflow-x:auto}
+.chart .bar{flex:1;min-width:16px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:4px}
+.chart .bfill{width:100%;background:linear-gradient(180deg,var(--gold2),var(--gold));border-radius:4px 4px 2px 2px;min-height:2px}
+.chart .bval{font-size:.6rem;color:var(--gold2);font-weight:700}
+.chart .blab{font-size:.56rem;color:var(--muted);white-space:nowrap}
+.barRow{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.barRow .bn{font-size:.76rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barRow .btrack{width:42%;height:7px;border-radius:4px;background:var(--navy3);overflow:hidden;flex-shrink:0}
+.barRow .bfil{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--gold2))}
+.barRow .bc{font-size:.72rem;color:var(--grey);width:32px;text-align:left;flex-shrink:0}
+.ordCard{background:var(--navy2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px}
+.ordTop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.ordInv{font-weight:700;font-size:.8rem;color:var(--gold2)}
+.ordTotal{font-weight:800;font-size:.85rem}
+.ordMeta{font-size:.74rem;color:var(--grey);line-height:1.8}
+.ordItems{font-size:.73rem;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--line);line-height:1.8}
 </style>
 </head>
 <body>
@@ -110,6 +133,7 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
     <div class="tools" style="margin-bottom:18px">
       <button class="btn btn-gold btn-sm" id="tabProductsBtn" onclick="switchTab('products')">المنتجات</button>
       <button class="btn btn-ghost btn-sm" id="tabCouponsBtn" onclick="switchTab('coupons')">أكواد الخصم</button>
+      <button class="btn btn-ghost btn-sm" id="tabStatsBtn" onclick="switchTab('stats')">الإحصائيات</button>
       <button class="btn btn-ghost btn-sm" id="tabSettingsBtn" onclick="switchTab('settings')">إعدادات الموقع</button>
     </div>
 
@@ -146,6 +170,41 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
       <div id="couponList" class="plist"></div>
       <div id="couponEmptyState" class="empty" style="display:none">
         ما عندك أكواد خصم بعد. اضغط "إنشاء كود خصم جديد" لتبدأ.
+      </div>
+    </div>
+
+    <div id="statsTab" style="display:none">
+      <div class="tools">
+        <button class="btn btn-gold btn-sm" id="rangeBtn1" onclick="setRange(1)">اليوم</button>
+        <button class="btn btn-ghost btn-sm" id="rangeBtn7" onclick="setRange(7)">آخر ٧ أيام</button>
+        <button class="btn btn-ghost btn-sm" id="rangeBtn30" onclick="setRange(30)">آخر ٣٠ يوم</button>
+      </div>
+
+      <div class="agrid">
+        <div class="acard"><b id="aVisits">0</b><span>الزيارات</span></div>
+        <div class="acard"><b id="aNew">0</b><span>زوار جدد</span></div>
+        <div class="acard"><b id="aAvgTime">0:00</b><span>متوسط مدة الزيارة</span></div>
+        <div class="acard"><b id="aOrders">0</b><span>الطلبات المكتملة</span></div>
+        <div class="acard"><b id="aRevenue">0</b><span>المبيعات (د.ع)</span></div>
+        <div class="acard"><b id="aConv">0%</b><span>نسبة التحويل</span></div>
+      </div>
+
+      <div class="agrid" style="grid-template-columns:repeat(2,1fr)">
+        <div class="acard"><b id="aCartAdds">0</b><span>إضافات للسلة</span></div>
+        <div class="acard"><b id="aAvgOrder">0</b><span>متوسط قيمة الطلب (د.ع)</span></div>
+      </div>
+
+      <div class="secTitle">الزيارات اليومية</div>
+      <div class="chart" id="aChart"></div>
+
+      <div class="secTitle">المنتجات الأكثر مشاهدة</div>
+      <div id="aTopProducts"></div>
+
+      <div class="secTitle">آخر الطلبات</div>
+      <div id="aOrdersList"></div>
+
+      <div id="statsEmpty" class="empty" style="display:none">
+        ما وصلت بيانات بعد. الإحصائيات تبدأ تنجمع من أول زيارة للموقع بعد تفعيل هذه الميزة.
       </div>
     </div>
 
@@ -406,13 +465,13 @@ let pendingCouponDelId = null;
 let imgSource = 'lib'; // 'lib' or 'upload'
 let uploadedImgUrl = null; // holds base64 data URL for uploaded images
 
+const TABS = ['products','coupons','stats','settings'];
 function switchTab(tab){
-  document.getElementById('productsTab').style.display = tab==='products' ? '' : 'none';
-  document.getElementById('couponsTab').style.display = tab==='coupons' ? '' : 'none';
-  document.getElementById('settingsTab').style.display = tab==='settings' ? '' : 'none';
-  document.getElementById('tabProductsBtn').className = tab==='products' ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
-  document.getElementById('tabCouponsBtn').className = tab==='coupons' ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
-  document.getElementById('tabSettingsBtn').className = tab==='settings' ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+  TABS.forEach(t=>{
+    document.getElementById(t+'Tab').style.display = t===tab ? '' : 'none';
+    document.getElementById('tab'+t[0].toUpperCase()+t.slice(1)+'Btn').className =
+      t===tab ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+  });
 }
 
 function showToast(msg){
@@ -437,6 +496,7 @@ async function initFirebase(){
       listenProducts();
       listenCoupons();
       listenSettings();
+      listenAnalytics();
     } else {
       document.getElementById('loginScreen').style.display='flex';
       document.getElementById('dash').style.display='none';
@@ -623,6 +683,127 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
   }
   btn.disabled = false; btn.textContent = 'حفظ الإعدادات';
 });
+
+/* ============================================================
+   الإحصائيات — تُقرأ من مستندات analytics اليومية ومجموعة orders
+   ============================================================ */
+let anaDays = [];    // مستند لكل يوم
+let anaOrders = [];  // آخر الطلبات
+let anaRange = 1;    // اليوم / ٧ / ٣٠
+
+function listenAnalytics(){
+  const dq = fsMod.query(fsMod.collection(db,'analytics'), fsMod.orderBy('date','desc'), fsMod.limit(60));
+  fsMod.onSnapshot(dq, snap=>{
+    anaDays = snap.docs.map(d=>({date:d.id, ...d.data()}));
+    renderAnalytics();
+  }, err=>console.warn('تعذّر تحميل الإحصائيات', err));
+
+  const oq = fsMod.query(fsMod.collection(db,'orders'), fsMod.orderBy('createdAt','desc'), fsMod.limit(40));
+  fsMod.onSnapshot(oq, snap=>{
+    anaOrders = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderAnalytics();
+  }, err=>console.warn('تعذّر تحميل الطلبات', err));
+}
+
+function setRange(n){
+  anaRange = n;
+  [1,7,30].forEach(r=>{
+    document.getElementById('rangeBtn'+r).className = r===n ? 'btn btn-gold btn-sm' : 'btn btn-ghost btn-sm';
+  });
+  renderAnalytics();
+}
+
+function dayKey(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+/* قائمة أيام المدة المختارة من الأقدم للأحدث، حتى الأيام الفارغة تظهر بالرسم */
+function rangeDays(){
+  const out = [];
+  for(let i=anaRange-1; i>=0; i--){
+    const d = new Date();
+    d.setDate(d.getDate()-i);
+    const key = dayKey(d);
+    out.push(anaDays.find(x=>x.date===key) || {date:key});
+  }
+  return out;
+}
+function fmtNum(n){ return Math.round(n||0).toLocaleString('en-US'); }
+function fmtDur(sec){
+  sec = Math.round(sec||0);
+  const m = Math.floor(sec/60);
+  return m + ':' + String(sec%60).padStart(2,'0');
+}
+
+function renderAnalytics(){
+  const days = rangeDays();
+  const sum = f => days.reduce((s,d)=>s+(d[f]||0), 0);
+
+  const visits = sum('visits');
+  const orders = sum('orders');
+  const revenue = sum('revenue');
+  const durTotal = sum('durationTotal');
+  const durCount = sum('durationCount');
+
+  document.getElementById('aVisits').textContent = fmtNum(visits);
+  document.getElementById('aNew').textContent = fmtNum(sum('newVisitors'));
+  document.getElementById('aAvgTime').textContent = durCount ? fmtDur(durTotal/durCount) : '0:00';
+  document.getElementById('aOrders').textContent = fmtNum(orders);
+  document.getElementById('aRevenue').textContent = fmtNum(revenue);
+  document.getElementById('aConv').textContent = visits ? ((orders/visits)*100).toFixed(1)+'%' : '0%';
+  document.getElementById('aCartAdds').textContent = fmtNum(sum('addToCart'));
+  document.getElementById('aAvgOrder').textContent = orders ? fmtNum(revenue/orders) : '0';
+
+  document.getElementById('statsEmpty').style.display = anaDays.length ? 'none' : 'block';
+
+  /* رسم الزيارات اليومية */
+  const maxV = Math.max(1, ...days.map(d=>d.visits||0));
+  document.getElementById('aChart').innerHTML = days.map(d=>{
+    const v = d.visits||0;
+    const label = d.date.slice(8)+'/'+d.date.slice(5,7);
+    return `<div class="bar" title="${d.date}: ${v} زيارة">
+      <div class="bval">${v||''}</div>
+      <div class="bfill" style="height:${Math.round((v/maxV)*100)}%"></div>
+      <div class="blab">${label}</div>
+    </div>`;
+  }).join('');
+
+  /* المنتجات الأكثر مشاهدة */
+  const views = {};
+  days.forEach(d=>{
+    Object.entries(d.productViews||{}).forEach(([k,v])=>{ views[k] = (views[k]||0) + v; });
+  });
+  const top = Object.entries(views).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxViews = top.length ? top[0][1] : 1;
+  document.getElementById('aTopProducts').innerHTML = top.length
+    ? top.map(([name,count])=>`<div class="barRow">
+        <div class="bn">${escapeHtml(name)}</div>
+        <div class="btrack"><div class="bfil" style="width:${Math.round((count/maxViews)*100)}%"></div></div>
+        <div class="bc">${count}</div>
+      </div>`).join('')
+    : '<div class="small">ما توجد مشاهدات بهذه المدة</div>';
+
+  /* آخر الطلبات ضمن المدة المختارة */
+  const from = new Date();
+  from.setDate(from.getDate()-(anaRange-1));
+  from.setHours(0,0,0,0);
+  const shown = anaOrders.filter(o=>(o.createdAt||0) >= from.getTime());
+  document.getElementById('aOrdersList').innerHTML = shown.length
+    ? shown.map(o=>`<div class="ordCard">
+        <div class="ordTop">
+          <span class="ordInv">${escapeHtml(o.invoiceNo||'—')}</span>
+          <span class="ordTotal">${fmtNum(o.total)} د.ع</span>
+        </div>
+        <div class="ordMeta">
+          ${escapeHtml(o.name||'')} — ${escapeHtml(o.phone||'')}<br>
+          ${escapeHtml(o.gov||'')}${o.area?' — '+escapeHtml(o.area):''}<br>
+          ${escapeHtml(o.dateStr||'')}
+        </div>
+        <div class="ordItems">${(o.items||[]).map(it=>
+          `${escapeHtml(it.name)}${it.color?' — '+escapeHtml(it.color):''} × ${it.qty}`
+        ).join('<br>')}${o.couponCode?`<br>كود الخصم: ${escapeHtml(o.couponCode)} (− ${fmtNum(o.discount)} د.ع)`:''}</div>
+      </div>`).join('')
+    : '<div class="small">ما توجد طلبات بهذه المدة</div>';
+}
 
 function renderList(){
   const wrap = document.getElementById('plist');
