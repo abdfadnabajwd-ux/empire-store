@@ -5,19 +5,23 @@
    بملف netlify.toml)، يقرأ إحصائيات اليوم من Firestore ويرسل
    ملخصاً لصاحب المتجر على تيليجرام مع مقارنة بأمس.
 
-   متغيرات البيئة المطلوبة (Netlify ← Site settings ← Environment variables):
-     TG_BOT_TOKEN     توكن بوت تيليجرام
-     TG_CHAT_ID       رقم محادثتك مع البوت
-     FB_ADMIN_EMAIL   بريد حساب لوحة التحكم
-     FB_ADMIN_PASSWORD كلمة مروره
-     SUMMARY_SECRET   (اختياري) كلمة سر لتجربة الملخص يدوياً من المتصفح
+   تشتغل بدون أي إعداد. وكل متغيرات البيئة اختيارية:
+     TG_BOT_TOKEN / TG_CHAT_ID       لنقل توكن تيليجرام خارج الكود
+     FB_ADMIN_EMAIL / FB_ADMIN_PASSWORD  تلزم فقط بعد تشديد قواعد
+                                     Firestore بحيث تمنع القراءة العامة
+     SUMMARY_SECRET                  كلمة سر لتجربة الملخص يدوياً من المتصفح
 
-   نسجّل الدخول بحساب لوحة التحكم حتى تبقى قواعد الأمان مشدّدة،
-   فأرقام المبيعات ما تنقرأ إلا بحساب مصرّح له.
+   طريقة قراءة البيانات: نحاول القراءة مباشرة، وإذا كانت القواعد
+   مشدّدة ورفضت الطلب نسجّل الدخول بحساب لوحة التحكم. هيك تشتغل
+   الوظيفة قبل تشديد القواعد وبعده بدون تعديل.
    ============================================================ */
 
 const FIREBASE_PROJECT = "empire-store-9c546";
 const FIREBASE_API_KEY = "AIzaSyDXYIgsj_S8Eqomlal23RxHaRc6ffWGIkc";
+/* نفس قيم index.html كافتراضي حتى تشتغل بدون إعداد — والأفضل نقلها
+   لمتغيرات البيئة، لأن التوكن الحالي مكشوف بكود الموقع أصلاً */
+const TG_TOKEN_FALLBACK = "8970683021:AAGqA4ZmCQKswDbnhynZIjkqSBnzWDsehcI";
+const TG_CHAT_FALLBACK = "152173477";
 const FS_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents`;
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC+3
 
@@ -60,7 +64,11 @@ const docFields = doc => {
 async function signIn() {
   const email = process.env.FB_ADMIN_EMAIL;
   const password = process.env.FB_ADMIN_PASSWORD;
-  if (!email || !password) throw new Error("بيانات حساب لوحة التحكم غير مهيأة");
+  if (!email || !password) {
+    throw new Error(
+      "قواعد Firestore تمنع القراءة العامة، فلازم تضيف FB_ADMIN_EMAIL و FB_ADMIN_PASSWORD بإعدادات Netlify"
+    );
+  }
   const res = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
     {
@@ -69,24 +77,41 @@ async function signIn() {
       body: JSON.stringify({ email, password, returnSecureToken: true })
     }
   );
-  if (!res.ok) throw new Error("تعذّر تسجيل الدخول إلى Firebase");
-  const data = await res.json();
-  return data.idToken;
+  if (!res.ok) throw new Error("تعذّر تسجيل الدخول إلى Firebase — تأكد من البريد وكلمة المرور");
+  return (await res.json()).idToken;
 }
 
-async function getDay(token, key) {
-  const res = await fetch(`${FS_BASE}/analytics/${key}`, {
-    headers: { Authorization: `Bearer ${token}` }
+/* نقرأ بدون تسجيل دخول، وإذا رفضت القواعد نسجّل الدخول ونعيد المحاولة.
+   التوكن يُطلب مرة واحدة فقط ويُعاد استخدامه لبقية الطلبات. */
+let cachedToken = null;
+async function fsFetch(url, options = {}) {
+  const call = token => fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
   });
+
+  let res = await call(cachedToken);
+  if (res.status === 401 || res.status === 403) {
+    cachedToken = await signIn();
+    res = await call(cachedToken);
+  }
+  return res;
+}
+
+async function getDay(key) {
+  const res = await fsFetch(`${FS_BASE}/analytics/${key}`);
   if (res.status === 404) return {}; // ما توجد بيانات لهذا اليوم
-  if (!res.ok) throw new Error("تعذّر قراءة الإحصائيات");
+  if (!res.ok) throw new Error("تعذّر قراءة الإحصائيات (HTTP " + res.status + ")");
   return docFields(await res.json());
 }
 
-async function getRecentOrders(token, sinceMs) {
-  const res = await fetch(`${FS_BASE}:runQuery`, {
+async function getRecentOrders(sinceMs) {
+  const res = await fsFetch(`${FS_BASE}:runQuery`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       structuredQuery: {
         from: [{ collectionId: "orders" }],
@@ -158,9 +183,8 @@ function buildMessage(day, today, yest, orders) {
 }
 
 async function sendTelegram(text) {
-  const token = process.env.TG_BOT_TOKEN;
-  const chat = process.env.TG_CHAT_ID;
-  if (!token || !chat) throw new Error("إعدادات تيليجرام غير مهيأة");
+  const token = process.env.TG_BOT_TOKEN || TG_TOKEN_FALLBACK;
+  const chat = process.env.TG_CHAT_ID || TG_CHAT_FALLBACK;
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -185,12 +209,12 @@ exports.handler = async (event) => {
   }
 
   try {
-    const token = await signIn();
     const day = baghdadDay(0);
-    const [today, yest, orders] = await Promise.all([
-      getDay(token, day.key),
-      getDay(token, baghdadDay(1).key),
-      getRecentOrders(token, day.startMs)
+    // أول قراءة لحالها حتى يُطلب توكن الدخول مرة واحدة إذا احتجناه
+    const today = await getDay(day.key);
+    const [yest, orders] = await Promise.all([
+      getDay(baghdadDay(1).key),
+      getRecentOrders(day.startMs)
     ]);
 
     const message = buildMessage(day, today, yest, orders);
