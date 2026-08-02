@@ -168,6 +168,13 @@ function buildMessage(day, today, yest, orders) {
   m += `📈 نسبة التحويل: ${visits ? ((orderCount / visits) * 100).toFixed(1) : "0"}%\n`;
   if (orderCount) m += `💵 متوسط الطلب: ${fmt(revenue / orderCount)} د.ع\n`;
 
+  const chatUsers = today.chatUsers || 0;
+  if (today.chatOpens || chatUsers) {
+    m += `${line}\n`;
+    m += `💬 تكلموا مع المساعد: ${fmt(chatUsers)}${trend(chatUsers, yest.chatUsers)}\n`;
+    m += `   فتحوا الدردشة: ${fmt(today.chatOpens)} · الرسائل: ${fmt(today.chatMessages)}\n`;
+  }
+
   const views = Object.entries(today.productViews || {}).sort((a, b) => b[1] - a[1]).slice(0, 5);
   if (views.length) {
     m += `${line}\n🔝 الأكثر مشاهدة:\n`;
