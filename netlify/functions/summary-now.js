@@ -14,15 +14,30 @@ const { runSummary } = require("./lib/summary-core.js");
 
 const TEXT = { "Content-Type": "text/plain; charset=utf-8" };
 
+/* تشخيص: أي متغير وصل للوظيفة وأي واحد ناقص — بأسمائها فقط
+   بدون أي قيمة، حتى ما تنكشف كلمة المرور ولا التوكن */
+function envReport() {
+  const names = ["SUMMARY_SECRET", "FB_ADMIN_EMAIL", "FB_ADMIN_PASSWORD", "TG_BOT_TOKEN", "TG_CHAT_ID"];
+  return names
+    .map(n => `${(process.env[n] || "").trim() ? "✅ واصل" : "❌ ناقص"}  ${n}`)
+    .join("\n");
+}
+
 exports.handler = async (event) => {
-  const secret = process.env.SUMMARY_SECRET;
-  const key = ((event && event.queryStringParameters) || {}).key;
+  // المسافات الزائدة سهلة الوقوع عند اللصق، فنتجاهلها بالطرفين
+  const secret = (process.env.SUMMARY_SECRET || "").trim();
+  const key = (((event && event.queryStringParameters) || {}).key || "").trim();
 
   if (!secret) {
     return {
       statusCode: 401,
       headers: TEXT,
-      body: "غير مصرّح — ضِف المتغير SUMMARY_SECRET بإعدادات Netlify أولاً"
+      body:
+        "المتغير SUMMARY_SECRET ما وصل للوظيفة.\n\n" +
+        "حالة المتغيرات:\n" + envReport() + "\n\n" +
+        "تأكد من كتابة الاسم بالضبط بحروف كبيرة وبدون مسافات، وأن له قيمة،\n" +
+        "ثم اعمل Deploy جديد (المتغيرات ما تسري إلا بعد نشر جديد).\n" +
+        "ملاحظة: TG_BOT_TOKEN و TG_CHAT_ID اختياريان ووجودهما ناقصاً طبيعي."
     };
   }
   if (key !== secret) {
