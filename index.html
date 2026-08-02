@@ -1224,9 +1224,9 @@ function renderCart(){
 }
 
 /* ===== CHECKOUT SUBMIT ===== */
-/* ⚙️ استلام الطلبات: تصلك فوراً عبر بوت تيليجرام */
-const TG_TOKEN = "8970683021:AAGqA4ZmCQKswDbnhynZIjkqSBnzWDsehcI";
-const TG_CHAT = "152173477";
+/* ⚙️ استلام الطلبات: تصلك فوراً عبر بوت تيليجرام.
+   الإرسال يصير بالسيرفر (netlify/functions/send-order.js) حتى لا يظهر
+   توكن البوت داخل صفحة الموقع لأي شخص يفتح المصدر. */
 
 let LAST_ORDER = null;
 
@@ -1268,38 +1268,24 @@ function submitOrder(){
   const dateStr = now.toLocaleDateString('ar-IQ') + ' — ' + now.toLocaleTimeString('ar-IQ',{hour:'2-digit',minute:'2-digit'});
   const invoiceNo = nextInvoiceNo();
 
-  let msg = '🧾 طلب جاهز — متجر امباير\n';
-  msg += 'رقم الفاتورة: ' + invoiceNo + '\n';
-  msg += '━━━━━━━━━━━━━━━\n';
-  msg += 'معلومات الزبون:\n';
-  msg += 'الاسم: ' + name + '\n';
-  msg += 'العنوان: ' + gov + ' — ' + area + '\n';
-  msg += 'نقطة دالة: ' + mark + '\n';
-  msg += 'الهاتف: ' + phone + '\n';
-  if(phone2) msg += 'هاتف ثاني: ' + phone2 + '\n';
-  msg += '━━━━━━━━━━━━━━━\n';
-  msg += 'المنتجات:\n';
-  CART.forEach((it,i)=>{
-    msg += (i+1)+'. '+it.name;
-    if(it.color) msg += ' — '+it.color;
-    if(it.withBox!==null&&it.withBox!==undefined) msg += it.withBox ? ' (مع علبة وكيبل)' : ' (بدون علبة)';
-    msg += ' × '+it.qty+' = '+fmt(it.price*it.qty)+' د.ع\n';
-    if(it.note) msg += '   📝 ملاحظة: '+it.note+'\n';
-  });
-  msg += '━━━━━━━━━━━━━━━\n';
-  msg += 'مجموع المنتجات: '+fmt(subtotal())+' د.ع\n';
-  if(APPLIED_COUPON) msg += 'خصم ('+APPLIED_COUPON.code+'): − '+fmt(discountAmount())+' د.ع\n';
-  msg += 'أجور التوصيل: '+fmt(DELIVERY)+' د.ع\n';
-  msg += 'المجموع النهائي: '+fmt(grandTotal())+' د.ع\n';
-  msg += 'التاريخ: ' + dateStr;
-
-  // إرسال فوري إلى تيليجرام صاحب المتجر (لا يفتح أي شيء عند الزبون)
-  const url = 'https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage';
+  // إبلاغ صاحب المتجر فوراً عبر السيرفر (لا يفتح أي شيء عند الزبون).
+  // نص الرسالة يُبنى بالسيرفر من نفس هذه الحقول.
   try {
-    fetch(url, {
+    fetch('/.netlify/functions/send-order', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({chat_id: TG_CHAT, text: msg})
+      body: JSON.stringify({
+        invoiceNo, name, gov, area, mark, phone, phone2, dateStr,
+        items: CART.map(it=>({
+          name: it.name, color: it.color, withBox: it.withBox,
+          qty: it.qty, price: it.price, note: it.note
+        })),
+        subtotal: subtotal(),
+        discount: discountAmount(),
+        couponCode: APPLIED_COUPON ? APPLIED_COUPON.code : null,
+        delivery: DELIVERY,
+        total: grandTotal()
+      })
     }).catch(()=>{});
   } catch(e) {}
 
