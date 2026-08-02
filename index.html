@@ -1494,10 +1494,17 @@ let aiHistory = [];
 let aiOpen = false;
 let aiBusy = false;
 
+/* نعدّ الزائر مرة واحدة بالجلسة، مو كل مرة يفتح ويسكّر */
+let aiCountedOpen = false, aiCountedTalk = false;
+
 function toggleAiChat(){
   aiOpen = !aiOpen;
   document.getElementById('aiPanel').classList.toggle('open', aiOpen);
   if(aiOpen) document.getElementById('aiInput').focus();
+  if(aiOpen && !aiCountedOpen){
+    aiCountedOpen = true;
+    anaBump({chatOpens:1});
+  }
 }
 
 function aiScrollBottom(){
@@ -1538,6 +1545,10 @@ async function sendAiMessage(){
   aiHistory.push({role:'user', content:text});
   aiBusy = true;
   aiShowTyping();
+  // chatUsers = زوار تكلموا فعلاً، chatMessages = مجموع الرسائل
+  const chatStats = {chatMessages:1};
+  if(!aiCountedTalk){ aiCountedTalk = true; chatStats.chatUsers = 1; }
+  anaBump(chatStats);
   try{
     const res = await fetch('/.netlify/functions/chat', {
       method: 'POST',

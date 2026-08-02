@@ -194,6 +194,17 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
         <div class="acard"><b id="aAvgOrder">0</b><span>متوسط قيمة الطلب (د.ع)</span></div>
       </div>
 
+      <div class="secTitle">المساعد الذكي</div>
+      <div class="agrid">
+        <div class="acard"><b id="aChatOpens">0</b><span>فتحوا الدردشة</span></div>
+        <div class="acard"><b id="aChatUsers">0</b><span>تكلموا فعلاً</span></div>
+        <div class="acard"><b id="aChatMsgs">0</b><span>مجموع الرسائل</span></div>
+      </div>
+      <div class="agrid" style="grid-template-columns:repeat(2,1fr)">
+        <div class="acard"><b id="aChatRate">0%</b><span>من الزوار جرّبوا الدردشة</span></div>
+        <div class="acard"><b id="aChatAvg">0</b><span>متوسط الرسائل للزائر</span></div>
+      </div>
+
       <div class="secTitle">الزيارات اليومية</div>
       <div class="chart" id="aChart"></div>
 
@@ -752,6 +763,14 @@ function renderAnalytics(){
   document.getElementById('aConv').textContent = visits ? ((orders/visits)*100).toFixed(1)+'%' : '0%';
   document.getElementById('aCartAdds').textContent = fmtNum(sum('addToCart'));
   document.getElementById('aAvgOrder').textContent = orders ? fmtNum(revenue/orders) : '0';
+
+  const chatUsers = sum('chatUsers');
+  const chatMsgs = sum('chatMessages');
+  document.getElementById('aChatOpens').textContent = fmtNum(sum('chatOpens'));
+  document.getElementById('aChatUsers').textContent = fmtNum(chatUsers);
+  document.getElementById('aChatMsgs').textContent = fmtNum(chatMsgs);
+  document.getElementById('aChatRate').textContent = visits ? ((chatUsers/visits)*100).toFixed(1)+'%' : '0%';
+  document.getElementById('aChatAvg').textContent = chatUsers ? (chatMsgs/chatUsers).toFixed(1) : '0';
 
   document.getElementById('statsEmpty').style.display = anaDays.length ? 'none' : 'block';
 
