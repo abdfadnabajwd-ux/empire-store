@@ -17,8 +17,35 @@
 const TG_TOKEN_FALLBACK = "8970683021:AAGqA4ZmCQKswDbnhynZIjkqSBnzWDsehcI";
 const TG_CHAT_FALLBACK = "152173477";
 
+const { createClient } = require("./lib/firestore.js");
+
 const MAX_ITEMS = 60;
 const fmt = n => Math.round(Number(n) || 0).toLocaleString("en-US");
+const pad = (n, w) => String(n).padStart(w, "0");
+
+/* ===== رقم الفاتورة =====
+   كان يتولّد بمتصفح الزبون من عدّاد محفوظ محلياً، فكل زبون يبدأ من
+   0001 ويطلع رقمين متطابقين لطلبين مختلفين. صار يُحجز هنا بالسيرفر
+   من عدّاد يومي مشترك، فالترقيم متسلسل وما يتكرر بين الزبائن. */
+function baghdadDayKey() {
+  const d = new Date(Date.now() + 3 * 60 * 60 * 1000); // UTC+3
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1, 2)}-${pad(d.getUTCDate(), 2)}`;
+}
+
+async function nextInvoiceNo() {
+  const dayKey = baghdadDayKey();
+  const compact = dayKey.replace(/-/g, "");
+  try {
+    // العدّاد داخل مستند إحصائيات اليوم — قراءته محصورة بلوحة التحكم
+    const seq = await createClient().incrementAndRead(`analytics/${dayKey}`, "invoiceSeq");
+    return `EMP-${compact}-${pad(seq, 4)}`;
+  } catch (e) {
+    // Firestore ما رد — رقم عشوائي حتى يبقى الطلب واصلاً وبرقم فريد
+    console.error("send-order: تعذّر حجز رقم متسلسل، استخدمنا رقم عشوائي —", e.message);
+    const rnd = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `EMP-${compact}-${rnd}`;
+  }
+}
 
 /* ننظّف كل حقل من محارف التحكم ونقصّه لطول معقول */
 function clean(v, max) {
@@ -95,20 +122,28 @@ exports.handler = async (event) => {
   const token = process.env.TG_BOT_TOKEN || TG_TOKEN_FALLBACK;
   const chat = process.env.TG_CHAT_ID || TG_CHAT_FALLBACK;
 
+  // الرقم يُحجز هنا ويُرجَع للموقع حتى تكون الفاتورة والرسالة بنفس الرقم
+  const invoiceNo = await nextInvoiceNo();
+
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chat, text: buildMessage(order), disable_web_page_preview: true })
+      body: JSON.stringify({
+        chat_id: chat,
+        text: buildMessage({ ...order, invoiceNo }),
+        disable_web_page_preview: true
+      })
     });
     if (!res.ok) {
       console.error("send-order: تيليجرام رفض الرسالة", (await res.text()).slice(0, 300));
-      return { statusCode: 502, headers, body: JSON.stringify({ error: "تعذّر إبلاغ المتجر" }) };
+      // الطلب صار فعلاً والرقم انحجز — نرجّعه للزبون حتى تطلع فاتورته صح
+      return { statusCode: 200, headers, body: JSON.stringify({ ok: false, invoiceNo }) };
     }
-    return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ ok: true, invoiceNo }) };
   } catch (e) {
     console.error("send-order:", e);
-    return { statusCode: 502, headers, body: JSON.stringify({ error: "تعذّر إبلاغ المتجر" }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ ok: false, invoiceNo }) };
   }
 };
 

@@ -1146,11 +1146,17 @@ function updateCartBadge(){
   document.querySelector('.nav-cart').textContent = CART.length ? 'السلة ('+CART.length+')' : 'السلة';
 }
 
+/* ===== قياس خطوات الشراء =====
+   نعرف وين ينسحب الزبون بالضبط: أضاف للسلة ← فتح السلة ← وصل لفورم
+   العنوان ← أكمل الطلب. كل خطوة تنعدّ مرة وحدة بالزيارة. */
+let stepCounted = {cart:false, checkout:false};
+
 function openCart(){
   renderCart();
   showCartView();
   document.getElementById('cartOverlay').classList.add('open');
   document.body.style.overflow='hidden';
+  if(!stepCounted.cart){ stepCounted.cart = true; anaBump({cartOpens:1}); }
 }
 function closeCart(){
   document.getElementById('cartOverlay').classList.remove('open');
@@ -1165,6 +1171,7 @@ function showCheckout(){
   document.getElementById('cartView').style.display='none';
   document.getElementById('checkoutView').style.display='';
   document.getElementById('checkoutTotals').innerHTML = totalsHTML();
+  if(!stepCounted.checkout){ stepCounted.checkout = true; anaBump({checkoutReached:1}); }
 }
 function removeItem(i){
   CART.splice(i,1);
@@ -1242,25 +1249,19 @@ function renderCart(){
 
 let LAST_ORDER = null;
 
-/* ===== توليد رقم فاتورة فريد: EMP-YYYYMMDD-XXXX ===== */
-function nextInvoiceNo(){
+/* ===== رقم فاتورة احتياطي =====
+   الرقم الأساسي يُحجز بالسيرفر (netlify/functions/send-order.js) من
+   عدّاد يومي مشترك. هذا احتياط يشتغل فقط إذا ما رد السيرفر — نستخدم
+   الوقت وحروف عشوائية بدل عدّاد محلي، لأن العدّاد المحلي كان يخلي
+   كل زبون يبدأ من 0001 فتطلع فواتير برقم واحد. */
+function fallbackInvoiceNo(){
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth()+1).padStart(2,'0');
-  const d = String(now.getDate()).padStart(2,'0');
-  const today = `${y}${m}${d}`;
-  let seq = 1;
-  try {
-    const saved = JSON.parse(localStorage.getItem('empInvSeq')||'{}');
-    seq = (saved.date===today) ? saved.seq+1 : 1;
-    localStorage.setItem('empInvSeq', JSON.stringify({date:today, seq}));
-  } catch(e){
-    seq = Math.floor(Math.random()*9999)+1; // احتياط إذا التخزين مقفل
-  }
-  return `EMP-${today}-${String(seq).padStart(4,'0')}`;
+  const today = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  const rnd = Math.random().toString(36).slice(2,6).toUpperCase();
+  return `EMP-${today}-${rnd}`;
 }
 
-function submitOrder(){
+async function submitOrder(){
   const get = id => document.getElementById(id);
   const fields = [['fName','الاسم'],['fGov','المحافظة'],['fArea','المنطقة'],['fMark','أقرب نقطة دالة'],['fPhone','رقم الهاتف']];
   let ok = true;
@@ -1273,33 +1274,47 @@ function submitOrder(){
   if(phone && !/^[0-9+\s]{10,15}$/.test(phone)){ get('fPhone').classList.add('err'); ok=false; }
   if(!ok){ showToast('يرجى إكمال الحقول الإجبارية'); return; }
 
+  const btn = get('submitBtn');
+  if(btn.disabled) return;              // يمنع الضغط مرتين ووصول طلبين
+  btn.disabled = true;
+  const btnText = btn.textContent;
+  btn.textContent = 'جارٍ الإرسال...';
+
   const name=get('fName').value.trim(), gov=get('fGov').value, area=get('fArea').value.trim(),
         mark=get('fMark').value.trim(), phone2=get('fPhone2').value.trim();
 
   const now = new Date();
   const dateStr = now.toLocaleDateString('ar-IQ') + ' — ' + now.toLocaleTimeString('ar-IQ',{hour:'2-digit',minute:'2-digit'});
-  const invoiceNo = nextInvoiceNo();
 
-  // إبلاغ صاحب المتجر فوراً عبر السيرفر (لا يفتح أي شيء عند الزبون).
-  // نص الرسالة يُبنى بالسيرفر من نفس هذه الحقول.
+  const payload = {
+    name, gov, area, mark, phone, phone2, dateStr,
+    items: CART.map(it=>({
+      name: it.name, color: it.color, withBox: it.withBox,
+      qty: it.qty, price: it.price, note: it.note
+    })),
+    subtotal: subtotal(),
+    discount: discountAmount(),
+    couponCode: APPLIED_COUPON ? APPLIED_COUPON.code : null,
+    delivery: DELIVERY,
+    total: grandTotal()
+  };
+
+  // السيرفر يبلّغ صاحب المتجر ويحجز رقم الفاتورة، حتى ما يتكرر الرقم
+  // بين زبونين. إذا ما رد نستخدم رقماً محلياً فريداً ونكمّل الطلب.
+  let invoiceNo = null;
   try {
-    fetch('/.netlify/functions/send-order', {
+    const res = await fetch('/.netlify/functions/send-order', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        invoiceNo, name, gov, area, mark, phone, phone2, dateStr,
-        items: CART.map(it=>({
-          name: it.name, color: it.color, withBox: it.withBox,
-          qty: it.qty, price: it.price, note: it.note
-        })),
-        subtotal: subtotal(),
-        discount: discountAmount(),
-        couponCode: APPLIED_COUPON ? APPLIED_COUPON.code : null,
-        delivery: DELIVERY,
-        total: grandTotal()
-      })
-    }).catch(()=>{});
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(data && data.invoiceNo) invoiceNo = data.invoiceNo;
   } catch(e) {}
+  if(!invoiceNo) invoiceNo = fallbackInvoiceNo();
+
+  btn.disabled = false;
+  btn.textContent = btnText;
 
   LAST_ORDER = {invoiceNo,name,gov,area,mark,phone,phone2,dateStr,items:CART.map(x=>({...x})),coupon:APPLIED_COUPON?{...APPLIED_COUPON}:null,discount:discountAmount()};
 

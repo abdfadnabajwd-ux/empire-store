@@ -194,6 +194,9 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
         <div class="acard"><b id="aAvgOrder">0</b><span>متوسط قيمة الطلب (د.ع)</span></div>
       </div>
 
+      <div class="secTitle">خطوات الشراء — وين ينسحب الزبون</div>
+      <div id="aFunnel"></div>
+
       <div class="secTitle">المساعد الذكي</div>
       <div class="agrid">
         <div class="acard"><b id="aChatOpens">0</b><span>فتحوا الدردشة</span></div>
@@ -763,6 +766,26 @@ function renderAnalytics(){
   document.getElementById('aConv').textContent = visits ? ((orders/visits)*100).toFixed(1)+'%' : '0%';
   document.getElementById('aCartAdds').textContent = fmtNum(sum('addToCart'));
   document.getElementById('aAvgOrder').textContent = orders ? fmtNum(revenue/orders) : '0';
+
+  /* قمع الشراء: كل خطوة مع نسبتها من الخطوة اللي قبلها،
+     فالخطوة اللي تنزل بيها النسبة فجأة هي مكان الخسارة */
+  const steps = [
+    ['زاروا الموقع', visits],
+    ['أضافوا للسلة', sum('addToCart')],
+    ['فتحوا السلة', sum('cartOpens')],
+    ['وصلوا لفورم العنوان', sum('checkoutReached')],
+    ['أكملوا الطلب', orders]
+  ];
+  const funnelTop = steps[0][1] || 1;
+  document.getElementById('aFunnel').innerHTML = steps.map(([label, n], i)=>{
+    const prev = i ? steps[i-1][1] : 0;
+    const drop = i && prev ? ` · ${((n/prev)*100).toFixed(0)}% من السابقة` : '';
+    return `<div class="barRow">
+      <div class="bn">${label}<span style="color:var(--muted);font-size:.68rem">${drop}</span></div>
+      <div class="btrack"><div class="bfil" style="width:${Math.round((n/funnelTop)*100)}%"></div></div>
+      <div class="bc">${fmtNum(n)}</div>
+    </div>`;
+  }).join('');
 
   const chatUsers = sum('chatUsers');
   const chatMsgs = sum('chatMessages');

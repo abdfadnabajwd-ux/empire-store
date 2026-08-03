@@ -19,13 +19,12 @@
    الوظيفة قبل تشديد القواعد وبعده بدون تعديل.
    ============================================================ */
 
-const FIREBASE_PROJECT = "empire-store-9c546";
-const FIREBASE_API_KEY = "AIzaSyDXYIgsj_S8Eqomlal23RxHaRc6ffWGIkc";
+const { FS_BASE, val, docFields, createClient } = require("./firestore.js");
+
 /* نفس قيم index.html كافتراضي حتى تشتغل بدون إعداد — والأفضل نقلها
    لمتغيرات البيئة، لأن التوكن الحالي مكشوف بكود الموقع أصلاً */
 const TG_TOKEN_FALLBACK = "8970683021:AAGqA4ZmCQKswDbnhynZIjkqSBnzWDsehcI";
 const TG_CHAT_FALLBACK = "152173477";
-const FS_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents`;
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC+3
 
 const pad = n => String(n).padStart(2, "0");
@@ -42,77 +41,17 @@ function baghdadDay(daysAgo = 0) {
   };
 }
 
-/* تحويل قيم Firestore REST إلى قيم جافاسكربت عادية */
-function val(v) {
-  if (!v || typeof v !== "object") return null;
-  if ("integerValue" in v) return Number(v.integerValue);
-  if ("doubleValue" in v) return Number(v.doubleValue);
-  if ("stringValue" in v) return v.stringValue;
-  if ("booleanValue" in v) return v.booleanValue;
-  if ("nullValue" in v) return null;
-  if ("mapValue" in v) {
-    const o = {};
-    Object.entries(v.mapValue.fields || {}).forEach(([k, x]) => { o[k] = val(x); });
-    return o;
-  }
-  if ("arrayValue" in v) return (v.arrayValue.values || []).map(val);
-  return null;
-}
-const docFields = doc => {
-  const o = {};
-  Object.entries((doc && doc.fields) || {}).forEach(([k, v]) => { o[k] = val(v); });
-  return o;
-};
-
-async function signIn() {
-  const email = process.env.FB_ADMIN_EMAIL;
-  const password = process.env.FB_ADMIN_PASSWORD;
-  if (!email || !password) {
-    throw new Error(
-      "قواعد Firestore تمنع القراءة العامة، فلازم تضيف FB_ADMIN_EMAIL و FB_ADMIN_PASSWORD بإعدادات Netlify"
-    );
-  }
-  const res = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, returnSecureToken: true })
-    }
-  );
-  if (!res.ok) throw new Error("تعذّر تسجيل الدخول إلى Firebase — تأكد من البريد وكلمة المرور");
-  return (await res.json()).idToken;
-}
-
-/* نقرأ بدون تسجيل دخول، وإذا رفضت القواعد نسجّل الدخول ونعيد المحاولة.
-   التوكن يُطلب مرة واحدة فقط ويُعاد استخدامه لبقية الطلبات. */
-let cachedToken = null;
-async function fsFetch(url, options = {}) {
-  const call = token => fetch(url, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    }
-  });
-
-  let res = await call(cachedToken);
-  if (res.status === 401 || res.status === 403) {
-    cachedToken = await signIn();
-    res = await call(cachedToken);
-  }
-  return res;
-}
+let fs = null; // عميل Firestore لهذا الاستدعاء
 
 async function getDay(key) {
-  const res = await fsFetch(`${FS_BASE}/analytics/${key}`);
+  const res = await fs.fsFetch(`${FS_BASE}/analytics/${key}`);
   if (res.status === 404) return {}; // ما توجد بيانات لهذا اليوم
   if (!res.ok) throw new Error("تعذّر قراءة الإحصائيات (HTTP " + res.status + ")");
   return docFields(await res.json());
 }
 
 async function getRecentOrders(sinceMs) {
-  const res = await fsFetch(`${FS_BASE}:runQuery`, {
+  const res = await fs.fsFetch(`${FS_BASE}:runQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -162,7 +101,11 @@ function buildMessage(day, today, yest, orders) {
   m += `🆕 زوار جدد: ${fmt(today.newVisitors)}${trend(today.newVisitors, yest.newVisitors)}\n`;
   m += `⏱ متوسط مدة الزيارة: ${durStr(today.durationTotal, today.durationCount)}\n`;
   m += `${line}\n`;
-  m += `🛒 إضافات للسلة: ${fmt(today.addToCart)}\n`;
+  m += `🛒 أضافوا للسلة: ${fmt(today.addToCart)}\n`;
+  if (today.cartOpens || today.checkoutReached) {
+    m += `🛍 فتحوا السلة: ${fmt(today.cartOpens)}\n`;
+    m += `📝 وصلوا لفورم العنوان: ${fmt(today.checkoutReached)}\n`;
+  }
   m += `🧾 الطلبات: ${fmt(orderCount)}${trend(orderCount, yest.orders)}\n`;
   m += `💰 المبيعات: ${fmt(revenue)} د.ع${trend(revenue, yest.revenue)}\n`;
   m += `📈 نسبة التحويل: ${visits ? ((orderCount / visits) * 100).toFixed(1) : "0"}%\n`;
@@ -206,7 +149,7 @@ async function sendTelegram(text) {
 /* يجمع أرقام اليوم، يرسلها على تيليجرام، ويرجّع نص الرسالة.
    يستدعيها الملف المجدول daily-summary.js ونقطة الفحص summary-now.js */
 async function runSummary() {
-  cachedToken = null; // كل استدعاء يبدأ بجلسة نظيفة
+  fs = createClient(); // كل استدعاء يبدأ بجلسة نظيفة
   const day = baghdadDay(0);
   // أول قراءة لحالها حتى يُطلب توكن الدخول مرة واحدة إذا احتجناه
   const today = await getDay(day.key);
