@@ -201,6 +201,9 @@ footer{background:#1a2132;border-top:1px solid var(--line);padding:64px 24px 30p
 .ai-name{font-weight:700;font-size:.9rem;color:var(--white)}
 .ai-status{font-size:.7rem;color:#6fbf87}
 .ai-close{background:none;border:none;color:var(--grey);font-size:1.1rem;cursor:pointer;padding:4px}
+.ai-head-acts{display:flex;align-items:center;gap:2px}
+.ai-newchat{background:none;border:none;color:var(--grey);font-size:.72rem;cursor:pointer;padding:4px 8px;font-family:'Cairo',sans-serif;border-radius:8px}
+.ai-newchat:hover{color:var(--gold2)}
 .ai-messages{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-height:200px;max-height:calc(70vh - 120px)}
 .ai-msg{max-width:82%;padding:9px 13px;border-radius:14px;font-size:.85rem;line-height:1.6;white-space:pre-wrap}
 .ai-bot{align-self:flex-start;background:var(--navy3);color:var(--white);border-bottom-left-radius:4px}
@@ -556,10 +559,13 @@ select.f-input{appearance:none;cursor:pointer}
         <div class="ai-status">جاهز يجاوبك الآن</div>
       </div>
     </div>
-    <button class="ai-close" onclick="toggleAiChat()" aria-label="إغلاق">✕</button>
+    <div class="ai-head-acts">
+      <button class="ai-newchat" onclick="aiClearHistory()">محادثة جديدة</button>
+      <button class="ai-close" onclick="toggleAiChat()" aria-label="إغلاق">✕</button>
+    </div>
   </div>
   <div class="ai-messages" id="aiMessages">
-    <div class="ai-msg ai-bot">هلا بيك! 👋 أني مساعد امباير الذكي، تكدر تسألني عن أي منتج، سعر، ضمان، أو توصيل.</div>
+    <div class="ai-msg ai-bot" id="aiWelcome">هلا بيك! 👋 أني مساعد امباير الذكي، تكدر تسألني عن أي منتج، سعر، ضمان، أو توصيل.</div>
   </div>
   <div class="ai-inputRow">
     <input type="text" id="aiInput" placeholder="اكتب سؤالك هنا..." onkeydown="if(event.key==='Enter')sendAiMessage()">
@@ -879,13 +885,19 @@ function showToast(msg){
 
 /* ===== MODAL ===== */
 const BOX_FEE = 20000;
-const BOX_ELIGIBLE_MODELS = ['14','13','12'];
+/* الباكيت اختياري لآيفون 14 وأقدم. الـ15 يجي مع باكيته وكيبله دائماً
+   فما يحتاج خيار، والـ16 وفوق أجهزة جديدة بعلبتها الأصلية. */
+const BOX_MAX_MODEL = 14;
+function boxEligible(model){
+  const n = parseInt(model, 10);
+  return Number.isFinite(n) && n <= BOX_MAX_MODEL;
+}
 let mState = {};
 function openModal(i){
   const p = PRODUCTS[i];
   const modelMatch = p.cat==='iPhone' ? p.name.match(/آيفون\s*(\d+)/) : null;
   const model = modelMatch ? modelMatch[1] : '';
-  mState = {name:p.name, basePrice:parseInt(p.price.replace(/,/g,'')), price:p.price, colors:p.colors?COLOR_SETS[p.colors]:null, selColor:null, qty:1, stock:p.stock||TOTAL_STOCK, showBox:BOX_ELIGIBLE_MODELS.includes(model), withBox:false};
+  mState = {name:p.name, basePrice:parseInt(p.price.replace(/,/g,'')), price:p.price, colors:p.colors?COLOR_SETS[p.colors]:null, selColor:null, qty:1, stock:p.stock||TOTAL_STOCK, showBox:boxEligible(model), withBox:false};
   document.getElementById('mTitle').textContent = p.name;
   document.getElementById('mQty').textContent = '1';
   document.getElementById('mNote').value = '';
@@ -1494,6 +1506,50 @@ let aiHistory = [];
 let aiOpen = false;
 let aiBusy = false;
 
+/* ===== حفظ المحادثة =====
+   الزبون يسكّر الصفحة ويرجع فيلگي كلامه مكانه بدل ما يعيد السؤال.
+   نحفظ آخر 40 رسالة فقط، وننسى المحادثة بعد 12 ساعة حتى ما يرجع
+   بعد أيام ويلگي كلام قديم ما يتذكره. */
+const AI_STORE_KEY = 'empChat';
+const AI_KEEP_MSGS = 40;
+const AI_TTL_MS = 12 * 60 * 60 * 1000;
+
+function aiSaveHistory(){
+  try{
+    localStorage.setItem(AI_STORE_KEY, JSON.stringify({
+      ts: Date.now(),
+      messages: aiHistory.slice(-AI_KEEP_MSGS)
+    }));
+  }catch(e){} // التخزين ممتلئ أو مقفل — المحادثة تكمل عادي بدون حفظ
+}
+
+function aiLoadHistory(){
+  let saved = null;
+  try{
+    saved = JSON.parse(localStorage.getItem(AI_STORE_KEY) || 'null');
+  }catch(e){ return; }
+  if(!saved || !Array.isArray(saved.messages) || !saved.messages.length) return;
+  if(Date.now() - (saved.ts || 0) > AI_TTL_MS){
+    try{ localStorage.removeItem(AI_STORE_KEY); }catch(e){}
+    return;
+  }
+  aiHistory = saved.messages.filter(m => m && typeof m.content === 'string' &&
+                                          (m.role === 'user' || m.role === 'assistant'));
+  aiHistory.forEach(m => aiAppend(m.role === 'user' ? 'user' : 'bot', m.content));
+  // محادثة قديمة تكمل، فالزائر انعدّ سابقاً ولا نعيد عدّه
+  if(aiHistory.length) aiCountedTalk = true;
+}
+
+function aiClearHistory(){
+  aiHistory = [];
+  try{ localStorage.removeItem(AI_STORE_KEY); }catch(e){}
+  const box = document.getElementById('aiMessages');
+  if(!box) return;
+  // نبقي رسالة الترحيب ونشيل بس المحادثة
+  [...box.children].forEach(el => { if(el.id !== 'aiWelcome') el.remove(); });
+  document.getElementById('aiInput').focus();
+}
+
 /* نعدّ الزائر مرة واحدة بالجلسة، مو كل مرة يفتح ويسكّر */
 let aiCountedOpen = false, aiCountedTalk = false;
 
@@ -1560,6 +1616,7 @@ async function sendAiMessage(){
     if(data.reply){
       aiAppend('bot', data.reply);
       aiHistory.push({role:'assistant', content:data.reply});
+      aiSaveHistory();
     } else {
       aiAppend('bot', 'عذراً، صار خطأ بسيط. جرب مرة ثانية أو تواصل معنا واتساب.');
     }
@@ -1575,6 +1632,7 @@ initCloudProducts();
 initCloudCoupons();
 initCloudSettings();
 initAnalytics();
+aiLoadHistory();
 
 render();
 observeFades();
