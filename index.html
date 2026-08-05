@@ -1140,17 +1140,38 @@ async function anaBump(fields){
     await ctx.fsMod.setDoc(ctx.fsMod.doc(ctx.db,'analytics',day), data, {merge:true});
   }catch(e){}
 }
-/* يسجّل مشاهدة منتج داخل خريطة productViews */
-async function anaBumpProduct(name){
+/* ===== مشاهدات المنتجات =====
+   الزائر يفتح منتجات هواي وهو يتصفح، وإرسال طلب لكل وحدة يثقّل
+   التصفح بلا فائدة. نجمّعهن بالذاكرة ونرسلهن بطلب واحد كل ثواني،
+   وعند الخروج من الصفحة حتى ما تضيع الأخيرة. */
+let pendingViews = {};
+let viewsTimer = null;
+const VIEWS_FLUSH_MS = 8000;
+
+function anaBumpProduct(name){
+  const key = String(name||'').replace(/[.\/\[\]*`~]/g,' ').replace(/\s+/g,' ').trim().slice(0,90);
+  if(!key) return;
+  pendingViews[key] = (pendingViews[key] || 0) + 1;
+  if(!viewsTimer) viewsTimer = setTimeout(anaFlushViews, VIEWS_FLUSH_MS);
+}
+
+async function anaFlushViews(){
+  if(viewsTimer){ clearTimeout(viewsTimer); viewsTimer = null; }
+  const batch = pendingViews;
+  pendingViews = {};
+  const names = Object.keys(batch);
+  if(!names.length) return;
   try{
     const ctx = await anaDb();
-    if(!ctx) return;
-    const key = String(name||'').replace(/[.\/\[\]*`~]/g,' ').replace(/\s+/g,' ').trim().slice(0,90);
-    if(!key) return;
+    if(!ctx){ return; }
+    const views = {};
+    names.forEach(k=>{ views[k] = ctx.fsMod.increment(batch[k]); });
     const day = anaToday();
     await ctx.fsMod.setDoc(ctx.fsMod.doc(ctx.db,'analytics',day),
-      {date: day, productViews: {[key]: ctx.fsMod.increment(1)}}, {merge:true});
-  }catch(e){}
+      {date: day, productViews: views}, {merge:true});
+  }catch(e){
+    // ما نرجّعهن للطابور حتى ما تنعاد المحاولة بلا نهاية
+  }
 }
 /* يحفظ الطلب المكتمل بمجموعة orders ويزيد عدّادات المبيعات */
 async function anaTrackOrder(order){
@@ -1200,9 +1221,9 @@ function initAnalytics(){
   anaLastTick = Date.now();
   document.addEventListener('visibilitychange', ()=>{
     anaTick();
-    if(document.visibilityState === 'hidden') anaFlushDuration();
+    if(document.visibilityState === 'hidden'){ anaFlushDuration(); anaFlushViews(); }
   });
-  window.addEventListener('pagehide', anaFlushDuration);
+  window.addEventListener('pagehide', ()=>{ anaFlushDuration(); anaFlushViews(); });
   setInterval(anaFlushDuration, 45000);
 }
 
