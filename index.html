@@ -1050,7 +1050,11 @@ async function initCloudCoupons(){
    ونخزّنها بجهاز الزائر، فالزيارة الجاية تنطبق فوراً بدون ما يشوف
    الإعلان القديم. وبعدها نفتح اشتراكاً حياً حتى أي تعديل من لوحة
    التحكم يظهر بدون تحديث الصفحة. */
-const SETTINGS_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents/settings/general`;
+/* يُبنى وقت الاستدعاء لا وقت تحميل السكربت، لأن FIREBASE_CONFIG
+   معرّف بأسفل الملف — قراءته من هنا مباشرة توقف السكربت كله */
+function settingsUrl(){
+  return `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents/settings/general`;
+}
 
 /* تحويل قيم Firestore REST إلى قيم عادية */
 function fsVal(v){
@@ -1077,7 +1081,7 @@ async function initCloudSettings(){
 
   // 1) طلب سريع مباشر — يوصل قبل ما تخلص المكتبة تحميل
   try{
-    const res = await fetch(SETTINGS_URL);
+    const res = await fetch(settingsUrl());
     if(res.ok){
       const doc = await res.json();
       const data = {};
