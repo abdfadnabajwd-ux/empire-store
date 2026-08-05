@@ -68,7 +68,9 @@ nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(30,38,56,.92);ba
 .hero-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
 .hero-text .kicker{display:inline-block;font-size:.72rem;letter-spacing:3px;font-weight:700;color:var(--gold2);border:1px solid var(--line);border-radius:24px;padding:6px 18px;margin-bottom:22px}
 .hero-text h1{color:var(--white);margin-bottom:14px}
-.hero-text h1 em{font-style:normal;color:var(--gold2)}
+/* السطر الذهبي أصغر شوية من سطر العنوان الأول حتى يبقى العنوان هو
+   الأبرز. النسبة بالـem فيبقى الفرق ثابتاً على كل أحجام الشاشات. */
+.hero-text h1 em{font-style:normal;color:var(--gold2);font-size:.76em;display:inline-block;margin-top:4px}
 .hero-text .lead{margin-bottom:30px;max-width:430px}
 .hero-cta{display:flex;gap:14px;flex-wrap:wrap}
 .btn{font-family:'Cairo',sans-serif;font-size:.92rem;font-weight:700;border-radius:12px;padding:14px 30px;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:8px;border:none}
