@@ -9,9 +9,11 @@
    هذا الملف داخل مجلد lib حتى لا يعتبره Netlify وظيفة مستقلة.
 
    متغيرات البيئة:
-     TG_BOT_TOKEN / TG_CHAT_ID       اختيارية — لنقل توكن تيليجرام خارج الكود
-     FB_ADMIN_EMAIL / FB_ADMIN_PASSWORD  تلزم عندما تمنع قواعد Firestore
-                                     القراءة العامة (وهو الوضع الحالي)
+     TG_BOT_TOKEN                    مطلوب — توكن البوت، لا يُكتب بالكود
+     TG_CHAT_ID                      اختياري — رقم المحادثة
+     FB_ADMIN_EMAIL / FB_ADMIN_PASSWORD  مطلوبان — حساب مخصص للبوت،
+                                     منفصل عن حساب صاحب المتجر حتى لا
+                                     ينكسر الملخص إذا غيّر كلمة مروره
      SUMMARY_SECRET                  مفتاح نقطة الفحص اليدوي
 
    طريقة قراءة البيانات: نحاول القراءة مباشرة، وإذا كانت القواعد
@@ -21,9 +23,8 @@
 
 const { FS_BASE, val, docFields, createClient } = require("./firestore.js");
 
-/* نفس قيم index.html كافتراضي حتى تشتغل بدون إعداد — والأفضل نقلها
-   لمتغيرات البيئة، لأن التوكن الحالي مكشوف بكود الموقع أصلاً */
-const TG_TOKEN_FALLBACK = "8970683021:AAGqA4ZmCQKswDbnhynZIjkqSBnzWDsehcI";
+/* التوكن يجي من متغيرات البيئة فقط — ما ينكتب بالكود أبداً.
+   رقم المحادثة مجرد معرّف، ما ينفع أحد بدون توكن، فيبقى كافتراضي. */
 const TG_CHAT_FALLBACK = "152173477";
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC+3
 
@@ -136,7 +137,8 @@ function buildMessage(day, today, yest, orders) {
 }
 
 async function sendTelegram(text) {
-  const token = process.env.TG_BOT_TOKEN || TG_TOKEN_FALLBACK;
+  const token = process.env.TG_BOT_TOKEN;
+  if (!token) throw new Error("المتغير TG_BOT_TOKEN غير مضبوط بإعدادات Netlify");
   const chat = process.env.TG_CHAT_ID || TG_CHAT_FALLBACK;
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",

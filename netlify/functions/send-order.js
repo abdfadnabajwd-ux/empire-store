@@ -8,13 +8,13 @@
    نص الرسالة يُبنى هنا من حقول محددة ومحدودة الطول، فحتى لو استدعى
    أحد الرابط مباشرة ما يقدر يرسل نصاً حراً — بس شكل طلب.
 
-   متغيرات البيئة (اختيارية):
-     TG_BOT_TOKEN / TG_CHAT_ID   عند تبديل التوكن من BotFather
+   متغيرات البيئة:
+     TG_BOT_TOKEN   مطلوب — توكن البوت. لا يُكتب بالكود إطلاقاً
+     TG_CHAT_ID     اختياري — رقم المحادثة
    ============================================================ */
 
-/* القيم الحالية كافتراضي حتى يستمر الاستلام بدون انقطاع.
-   بعد تبديل التوكن من BotFather، ضع الجديد بمتغيرات البيئة. */
-const TG_TOKEN_FALLBACK = "8970683021:AAGqA4ZmCQKswDbnhynZIjkqSBnzWDsehcI";
+/* التوكن يجي من متغيرات البيئة فقط — ما ينكتب بالكود أبداً.
+   رقم المحادثة مجرد معرّف، ما ينفع أحد بدون توكن، فيبقى كافتراضي. */
 const TG_CHAT_FALLBACK = "152173477";
 
 const { createClient } = require("./lib/firestore.js");
@@ -119,8 +119,12 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "بيانات الطلب ناقصة" }) };
   }
 
-  const token = process.env.TG_BOT_TOKEN || TG_TOKEN_FALLBACK;
+  const token = process.env.TG_BOT_TOKEN;
   const chat = process.env.TG_CHAT_ID || TG_CHAT_FALLBACK;
+  if (!token) {
+    console.error("send-order: المتغير TG_BOT_TOKEN غير مضبوط بإعدادات Netlify");
+    return { statusCode: 200, headers, body: JSON.stringify({ ok: false, invoiceNo: await nextInvoiceNo() }) };
+  }
 
   // الرقم يُحجز هنا ويُرجَع للموقع حتى تكون الفاتورة والرسالة بنفس الرقم
   const invoiceNo = await nextInvoiceNo();
