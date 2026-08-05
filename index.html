@@ -418,7 +418,7 @@ window.applyEmpSettings = function(data){
     <div class="strip-item"><div class="strip-num">100%</div><div class="strip-lbl">أجهزة أصلية</div></div>
     <div class="strip-item"><div class="strip-num">+31</div><div class="strip-lbl">منتج Apple متوفر</div></div>
     <div class="strip-item"><div class="strip-num">24/7</div><div class="strip-lbl">دعم مستمر</div></div>
-    <div class="strip-item"><div class="strip-num">48h</div><div class="strip-lbl">توصيل داخل العراق</div></div>
+    <div class="strip-item"><div class="strip-num">24h</div><div class="strip-lbl">توصيل بغداد · 48h للمحافظات</div></div>
   </div>
 </div>
 
@@ -650,7 +650,7 @@ window.applyEmpSettings = function(data){
         <input class="f-input" id="fName" type="text" placeholder="الاسم الثلاثي">
 
         <label class="f-label">المحافظة <span class="req">*</span></label>
-        <select class="f-input" id="fGov">
+        <select class="f-input" id="fGov" onchange="refreshTotals()">
           <option value="">اختر المحافظة</option>
           <option>بغداد</option><option>البصرة</option><option>نينوى</option><option>أربيل</option>
           <option>النجف</option><option>كربلاء</option><option>الأنبار</option><option>ديالى</option>
@@ -736,12 +736,12 @@ window.applyEmpSettings = function(data){
 
 /* ===== TICKER NEWS — عدّل هذه القائمة بأخبارك ===== */
 const TICKER_NEWS = [
-  "🚚 الآن متاحة خدمة التوصيل المجاني لجميع محافظات العراق — اطلب الآن",
+  "🚚 توصيل سريع لكل محافظات العراق — بغداد خلال 24 ساعة اطلب الآن",
   "وصل حديثاً: آيفون 17 برو ماكس بجميع السعات والألوان",
   "آيباد برو M5 متوفر الآن — أقوى آيباد على الإطلاق",
   "إيربودز برو 3 بميزة الترجمة الفورية وصلت امباير",
   "أسعارنا محدثة يومياً — آخر تحديث 12 يونيو 2026",
-  "توصيل سريع لجميع محافظات العراق خلال 48 ساعة",
+  "توصيل بغداد خلال 24 ساعة · باقي المحافظات خلال 48 ساعة",
   "ضمان Empire الذهبي مجاناً على كل الأجهزة"
 ];
 function renderTicker(list){
@@ -1229,7 +1229,17 @@ function initAnalytics(){
   setInterval(anaFlushDuration, 45000);
 }
 
-const DELIVERY = 7000;
+/* ===== أجور التوصيل =====
+   تختلف حسب المحافظة. بالسلة ما زال الزبون ما اختار محافظته، فنعرض
+   أجور بغداد مع تنبيه بالفرق، ويتحدّث المبلغ لحظة ما يختار. */
+const DELIVERY_BAGHDAD = 4000;
+const DELIVERY_OTHER = 5000;
+function deliveryFee(){
+  const el = document.getElementById('fGov');
+  const gov = el ? el.value.trim() : '';
+  if(!gov) return DELIVERY_BAGHDAD;
+  return gov === 'بغداد' ? DELIVERY_BAGHDAD : DELIVERY_OTHER;
+}
 const fmt = n => n.toLocaleString('en-US');
 
 function updateCartBadge(){
@@ -1273,13 +1283,22 @@ function discountAmount(){
   if(!APPLIED_COUPON) return 0;
   return Math.min(APPLIED_COUPON.amount, subtotal());
 }
-function grandTotal(){ return Math.max(0, subtotal() + DELIVERY - discountAmount()); }
+function grandTotal(){ return Math.max(0, subtotal() + deliveryFee() - discountAmount()); }
+/* المحافظة تغيّر أجور التوصيل، فنعيد رسم المجاميع بالمكانين */
+function refreshTotals(){
+  const co = document.getElementById('checkoutTotals');
+  if(co) co.innerHTML = totalsHTML();
+  const ct = document.getElementById('cartTotals');
+  if(ct) ct.innerHTML = totalsHTML();
+}
 function totalsHTML(){
   let html = `<div class="tot-row"><span>مجموع المنتجات</span><span>${fmt(subtotal())} د.ع</span></div>`;
   if(APPLIED_COUPON){
     html += `<div class="tot-row" style="color:var(--gold2)"><span>خصم (${APPLIED_COUPON.code}) <span onclick="removeCoupon()" style="cursor:pointer;text-decoration:underline;margin-right:6px">إزالة</span></span><span>− ${fmt(discountAmount())} د.ع</span></div>`;
   }
-  html += `<div class="tot-row"><span>أجور التوصيل</span><span>${fmt(DELIVERY)} د.ع</span></div>
+  const govPicked = (document.getElementById('fGov')||{}).value;
+  const feeNote = govPicked ? '' : ' <span style="font-size:.72rem;color:var(--muted)">(بغداد · المحافظات 5,000)</span>';
+  html += `<div class="tot-row"><span>أجور التوصيل${feeNote}</span><span>${fmt(deliveryFee())} د.ع</span></div>
   <div class="tot-row grand"><span>المجموع النهائي</span><span>${fmt(grandTotal())} د.ع</span></div>`;
   return html;
 }
@@ -1385,7 +1404,7 @@ async function submitOrder(){
     subtotal: subtotal(),
     discount: discountAmount(),
     couponCode: APPLIED_COUPON ? APPLIED_COUPON.code : null,
-    delivery: DELIVERY,
+    delivery: deliveryFee(),
     total: grandTotal()
   };
 
@@ -1406,7 +1425,7 @@ async function submitOrder(){
   btn.disabled = false;
   btn.textContent = btnText;
 
-  LAST_ORDER = {invoiceNo,name,gov,area,mark,phone,phone2,dateStr,items:CART.map(x=>({...x})),coupon:APPLIED_COUPON?{...APPLIED_COUPON}:null,discount:discountAmount()};
+  LAST_ORDER = {invoiceNo,name,gov,area,mark,phone,phone2,dateStr,items:CART.map(x=>({...x})),coupon:APPLIED_COUPON?{...APPLIED_COUPON}:null,discount:discountAmount(), delivery:deliveryFee()};
 
   // حفظ الطلب بلوحة التحكم + عدّادات المبيعات
   anaTrackOrder({
@@ -1416,7 +1435,7 @@ async function submitOrder(){
     subtotal: subtotal(),
     discount: discountAmount(),
     couponCode: APPLIED_COUPON ? APPLIED_COUPON.code : null,
-    delivery: DELIVERY,
+    delivery: deliveryFee(),
     total: grandTotal()
   });
 
@@ -1459,8 +1478,8 @@ function openReceipt(info){
   <div class="totals">
     مجموع المنتجات: ${fmt(items.reduce((s,it)=>s+it.price*it.qty,0))} د.ع<br>
     ${info.coupon?`خصم (${info.coupon.code}): − ${fmt(info.discount||0)} د.ع<br>`:''}
-    أجور التوصيل: ${fmt(DELIVERY)} د.ع<br>
-    <span class="grand">المجموع النهائي: ${fmt(items.reduce((s,it)=>s+it.price*it.qty,0)+DELIVERY-(info.discount||0))} د.ع</span>
+    أجور التوصيل: ${fmt(info.delivery ?? DELIVERY_BAGHDAD)} د.ع<br>
+    <span class="grand">المجموع النهائي: ${fmt(items.reduce((s,it)=>s+it.price*it.qty,0)+(info.delivery ?? DELIVERY_BAGHDAD)-(info.discount||0))} د.ع</span>
   </div>
   <div class="foot">امباير — Central Platform Empire · بغداد، الأعظمية · +964 780 009 4094</div>
   <script>setTimeout(()=>window.print(),600)<\/script>
