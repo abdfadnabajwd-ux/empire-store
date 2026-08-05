@@ -40,7 +40,10 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
 .loginCard h1{margin:10px 0 4px}
 .loginCard p{color:var(--grey);font-size:.85rem;margin-bottom:22px}
 .loginCard .field{text-align:right}
-#loginError{color:var(--danger);font-size:.82rem;margin-top:10px;min-height:1.2em}
+#loginError{color:var(--danger);font-size:.82rem;margin-top:10px;min-height:1.2em;line-height:1.6}
+.linkBtn{background:none;border:none;color:var(--grey);font-family:'Cairo',sans-serif;font-size:.78rem;cursor:pointer;margin-top:12px;text-decoration:underline;padding:4px}
+.linkBtn:hover{color:var(--gold2)}
+.linkBtn:disabled{opacity:.5;cursor:not-allowed}
 /* ===== dashboard ===== */
 #dash{display:none}
 .summary{display:flex;gap:10px;margin:18px 0}
@@ -119,6 +122,7 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
     </div>
     <button class="btn btn-gold" id="loginBtn" style="width:100%">تسجيل الدخول</button>
     <div id="loginError"></div>
+    <button class="linkBtn" id="forgotBtn">نسيت كلمة المرور؟</button>
   </div>
 </div>
 
@@ -523,6 +527,7 @@ document.getElementById('loginBtn').addEventListener('click', async ()=>{
   const pass = document.getElementById('loginPass').value;
   const errEl = document.getElementById('loginError');
   errEl.textContent = '';
+  errEl.style.color = 'var(--danger)'; // نرجّعه أحمر إذا كان أخضر من رسالة الاسترجاع
   if(!email || !pass){ errEl.textContent = 'أدخل البريد وكلمة المرور'; return; }
   const btn = document.getElementById('loginBtn');
   btn.disabled = true; btn.textContent = 'جارٍ الدخول...';
@@ -532,6 +537,35 @@ document.getElementById('loginBtn').addEventListener('click', async ()=>{
     errEl.textContent = 'بيانات الدخول غير صحيحة';
   }
   btn.disabled = false; btn.textContent = 'تسجيل الدخول';
+});
+
+/* استرجاع كلمة المرور — يرسل رابط تغيير على البريد المسجّل.
+   الرسالة واحدة سواء كان البريد مسجّلاً أو لا، حتى ما يقدر أحد
+   يستخدم الصفحة ليعرف أي بريد إله حساب بلوحة التحكم. */
+document.getElementById('forgotBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('loginEmail').value.trim();
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('forgotBtn');
+  if(!email){
+    errEl.style.color = 'var(--danger)';
+    errEl.textContent = 'اكتب بريدك بالخانة فوق أولاً، وبعدها اضغط نسيت كلمة المرور';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'جارٍ الإرسال...';
+  try{
+    await authMod.sendPasswordResetEmail(auth, email);
+  }catch(e){
+    // ما نفرّق بين بريد غير مسجّل وبين نجاح، إلا إذا كان الخطأ بالشبكة
+    if(e && e.code === 'auth/network-request-failed'){
+      errEl.style.color = 'var(--danger)';
+      errEl.textContent = 'تعذّر الاتصال، تأكد من الإنترنت وحاول مرة ثانية';
+      btn.disabled = false; btn.textContent = 'نسيت كلمة المرور؟';
+      return;
+    }
+  }
+  errEl.style.color = '#6fbf87';
+  errEl.textContent = 'إذا هذا البريد مسجّل، وصلك رابط تغيير كلمة المرور. شوف صندوق الوارد والـ Spam.';
+  btn.disabled = false; btn.textContent = 'نسيت كلمة المرور؟';
 });
 
 document.getElementById('logoutBtn').addEventListener('click', ()=>{
