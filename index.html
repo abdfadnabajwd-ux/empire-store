@@ -373,6 +373,43 @@ select.f-input{appearance:none;cursor:pointer}
   </div>
 </section>
 
+<script>
+/* ============================================================
+   تطبيق الإعدادات المحفوظة فوراً
+   يشتغل هنا بالضبط — بعد الواجهة الإعلانية مباشرة وقبل ما تكمل
+   بقية الصفحة — حتى ما يشوف الزائر الإعلان القديم المكتوب بالكود
+   ثم يتبدّل قدامه بعد ما تحمّل مكتبة Firebase.
+   ============================================================ */
+window.applyEmpSettings = function(data){
+  if(!data) return;
+  const text = {heroKicker:'heroKicker', heroTitle1:'heroTitle1', heroTitle2:'heroTitle2',
+                heroLead:'heroLead', heroTag:'heroTag', priceUpdateDate:'priceUpdateDate'};
+  Object.keys(text).forEach(key=>{
+    if(data[key]){
+      const el = document.getElementById(text[key]);
+      if(el) el.textContent = data[key];
+    }
+  });
+  if(data.heroImg){
+    const img = document.getElementById('heroImg');
+    if(img) img.src = data.heroImg;
+  }
+  if(Array.isArray(data.newsTicker) && data.newsTicker.length){
+    const t = document.getElementById('tickerTrack');
+    if(t){
+      const items = data.newsTicker.map(n=>`<span class="ticker-item">${n}</span>`).join('');
+      t.innerHTML = items + items; // مكرّرة حتى تدور بسلاسة
+    }
+  }
+};
+(function(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('empSettings') || 'null');
+    if(saved) window.applyEmpSettings(saved);
+  }catch(e){}
+})();
+</script>
+
 <!-- ============ STATS ============ -->
 <div class="strip">
   <div class="strip-inner fade">
@@ -710,7 +747,9 @@ function renderTicker(list){
   const items = list.map(n=>`<span class="ticker-item">${n}</span>`).join('');
   t.innerHTML = items + items; /* duplicated for seamless loop */
 }
-renderTicker(TICKER_NEWS);
+/* الأخبار المكتوبة هنا احتياط فقط — إذا الإعدادات المحفوظة عبّت
+   الشريط أصلاً ما ندوسها بالقديمة */
+if(!document.getElementById('tickerTrack').innerHTML) renderTicker(TICKER_NEWS);
 
 /* ===== IMAGES ===== */
 const IMG = {
@@ -1006,37 +1045,61 @@ async function initCloudCoupons(){
     });
   }catch(e){ console.warn('تعذّر تحميل أكواد الخصم', e); }
 }
+/* ===== إعدادات الموقع =====
+   نجيبها بطلب واحد خفيف أول شي (أسرع بكثير من تحميل مكتبة Firebase)
+   ونخزّنها بجهاز الزائر، فالزيارة الجاية تنطبق فوراً بدون ما يشوف
+   الإعلان القديم. وبعدها نفتح اشتراكاً حياً حتى أي تعديل من لوحة
+   التحكم يظهر بدون تحديث الصفحة. */
+const SETTINGS_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents/settings/general`;
+
+/* تحويل قيم Firestore REST إلى قيم عادية */
+function fsVal(v){
+  if(!v || typeof v !== 'object') return null;
+  if('stringValue' in v) return v.stringValue;
+  if('integerValue' in v) return Number(v.integerValue);
+  if('doubleValue' in v) return Number(v.doubleValue);
+  if('booleanValue' in v) return v.booleanValue;
+  if('arrayValue' in v) return (v.arrayValue.values||[]).map(fsVal);
+  if('mapValue' in v){
+    const o = {};
+    Object.entries(v.mapValue.fields||{}).forEach(([k,x])=>{ o[k] = fsVal(x); });
+    return o;
+  }
+  return null;
+}
+
+function cacheSettings(data){
+  try{ localStorage.setItem('empSettings', JSON.stringify(data)); }catch(e){}
+}
+
 async function initCloudSettings(){
   if(!FIREBASE_READY) return;
+
+  // 1) طلب سريع مباشر — يوصل قبل ما تخلص المكتبة تحميل
+  try{
+    const res = await fetch(SETTINGS_URL);
+    if(res.ok){
+      const doc = await res.json();
+      const data = {};
+      Object.entries(doc.fields||{}).forEach(([k,v])=>{ data[k] = fsVal(v); });
+      window.applyEmpSettings(data);
+      cacheSettings(data);
+    }
+  }catch(e){}
+
+  // 2) اشتراك حي للتعديلات اللحظية
   try{
     const appMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
     const fsMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
     const app = appMod.initializeApp(FIREBASE_CONFIG);
     const sdb = fsMod.getFirestore(app);
-    const ref = fsMod.doc(sdb,'settings','general');
-    fsMod.onSnapshot(ref, snap=>{
+    fsMod.onSnapshot(fsMod.doc(sdb,'settings','general'), snap=>{
       if(!snap.exists()) return;
       const data = snap.data();
-      if(data.priceUpdateDate){
-        const el = document.getElementById('priceUpdateDate');
-        if(el) el.textContent = data.priceUpdateDate;
-      }
-      if(Array.isArray(data.newsTicker) && data.newsTicker.length){
-        renderTicker(data.newsTicker);
-      }
-      const heroFields = {heroKicker:'heroKicker', heroTitle1:'heroTitle1', heroTitle2:'heroTitle2', heroLead:'heroLead', heroTag:'heroTag'};
-      Object.keys(heroFields).forEach(key=>{
-        if(data[key]){
-          const el = document.getElementById(heroFields[key]);
-          if(el) el.textContent = data[key];
-        }
-      });
-      if(data.heroImg){
-        const img = document.getElementById('heroImg');
-        if(img) img.src = data.heroImg;
-      }
+      window.applyEmpSettings(data);
+      cacheSettings(data);
     });
-  }catch(e){ console.warn('تعذّر تحميل الإعدادات', e); }
+  }catch(e){ console.warn('تعذّر الاشتراك بتحديثات الإعدادات', e); }
 }
 
 /* ============================================================
