@@ -60,6 +60,27 @@ nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(30,38,56,.92);ba
 .nav-wa:hover{opacity:.9}
 .nav-loc{display:flex;align-items:center;gap:7px;color:var(--white);text-decoration:none;font-size:.85rem;font-weight:600;padding:8px 14px;border:1px solid var(--line);border-radius:10px;transition:border-color .2s}
 .nav-loc:hover{border-color:var(--line2)}
+/* ===== عائلة امباير (حساب الزبون) ===== */
+.nav-member{background:transparent;border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-family:'Cairo',sans-serif;font-size:.82rem;font-weight:700;color:var(--grey);cursor:pointer;transition:all .2s;white-space:nowrap}
+.nav-member:hover{border-color:var(--line2);color:var(--gold2)}
+.nav-member.joined{border-color:var(--line2);color:var(--gold2);background:rgba(212,175,85,.08)}
+.nav-member.joined::before{content:'★ ';color:var(--gold2)}
+.memberCard{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.memberHead{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.memberAvatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a2132;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;flex-shrink:0}
+.memberName{font-weight:800;font-size:.98rem}
+.memberBadge{font-size:.7rem;color:var(--gold2);font-weight:700;letter-spacing:1px}
+.mPerks{list-style:none;margin:14px 0 0;padding:0}
+.mPerks li{font-size:.82rem;color:var(--grey);padding:6px 0;display:flex;gap:8px;align-items:flex-start;line-height:1.6}
+.mPerks li::before{content:'✓';color:var(--gold2);font-weight:800;flex-shrink:0}
+.authBtn{width:100%;font-family:'Cairo',sans-serif;font-size:.88rem;font-weight:700;border-radius:11px;padding:12px;cursor:pointer;border:1px solid var(--line2);background:var(--navy2);color:var(--white);display:flex;align-items:center;justify-content:center;gap:9px;transition:.2s;margin-bottom:9px}
+.authBtn:hover{border-color:var(--gold2)}
+.authBtn:disabled{opacity:.55;cursor:not-allowed}
+.authBtn.gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a2132;border:none}
+.authDiv{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--muted);font-size:.75rem}
+.authDiv::before,.authDiv::after{content:'';flex:1;height:1px;background:var(--line)}
+.authMsg{font-size:.8rem;min-height:1.2em;margin-top:8px;line-height:1.6}
+.linkTxt{background:none;border:none;color:var(--gold2);font-family:'Cairo',sans-serif;font-size:.8rem;cursor:pointer;text-decoration:underline;padding:4px}
 .nav-cart{background:transparent;border:1px solid var(--line2);border-radius:10px;padding:8px 16px;font-family:'Cairo',sans-serif;font-size:.85rem;font-weight:700;color:var(--gold2);cursor:pointer;transition:all .2s;min-width:84px}
 .nav-cart:hover{background:rgba(212,175,85,.08)}
 
@@ -345,6 +366,9 @@ select.f-input{appearance:none;cursor:pointer}
     <a class="nav-phone" href="tel:+9647800094094">
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 12l5 2v3a2 2 0 0 1-2.2 2A16.8 16.8 0 0 1 3 6.2 2 2 0 0 1 5 3z"/></svg>
       +964 780 009 4094</a>
+    <button class="nav-member" id="navMember" onclick="openMember()">
+      <span id="navMemberText">عائلة امباير</span>
+    </button>
     <button class="nav-cart" onclick="openCart()">السلة</button>
   </div>
 </nav>
@@ -614,6 +638,74 @@ window.applyEmpSettings = function(data){
   </div>
 </div>
 
+
+<!-- ===== عائلة امباير — حساب الزبون (اختياري) ===== -->
+<div class="overlay" id="memberOverlay" onclick="if(event.target===this)closeMember()">
+  <div class="sheet" style="max-width:460px">
+    <div class="m-head">
+      <button class="modal-close" onclick="closeMember()">✕</button>
+    </div>
+
+    <!-- الزبون غير مسجّل -->
+    <div id="memberJoin">
+      <div style="text-align:center;margin-bottom:6px">
+        <div class="memberBadge">EMPIRE FAMILY</div>
+        <h2 style="font-size:1.15rem;margin:6px 0 8px">انضم إلى عائلة امباير المميزين</h2>
+        <p style="font-size:.84rem;color:var(--grey);line-height:1.7">اختياري تماماً — تكدر تطلب بدون حساب</p>
+      </div>
+
+      <ul class="mPerks">
+        <li>تابع طلباتك وحالتها من أي جهاز</li>
+        <li>عنوانك ينحفظ فيتعبّى الفورم لحاله بالطلب الجاي</li>
+        <li>عروض وأكواد خصم حصرية للأعضاء</li>
+        <li>شارة عضو مميز باسمك</li>
+      </ul>
+
+      <div style="margin-top:18px">
+        <button class="authBtn" id="googleBtn" onclick="memberGoogle()">
+          <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#4285F4" d="M45 24c0-1.6-.1-2.7-.4-4H24v7.5h12c-.2 2-1.5 5-4.4 7l6.7 5.2C42.2 36 45 30.6 45 24z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-6.9-5.4C29.7 36.6 27.1 37.5 24 37.5c-5.8 0-10.7-3.9-12.5-9.1l-7.1 5.5C8 41.4 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.5 28.4c-.5-1.4-.7-2.9-.7-4.4s.3-3 .7-4.4l-7.1-5.5C2.9 17 2 20.4 2 24s.9 7 2.4 9.9l7.1-5.5z"/><path fill="#EA4335" d="M24 10.5c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 4.3 29.9 2 24 2 15.4 2 8 6.6 4.4 14.1l7.1 5.5c1.8-5.2 6.7-9.1 12.5-9.1z"/></svg>
+          الدخول بحساب Google
+        </button>
+
+        <div class="authDiv">أو بالبريد</div>
+
+        <div class="field"><input type="email" id="mEmail" placeholder="بريدك الإلكتروني" autocomplete="email"></div>
+        <div class="field"><input type="password" id="mPass" placeholder="كلمة المرور" autocomplete="current-password"></div>
+        <button class="authBtn gold" id="mAuthBtn" onclick="memberEmailAuth()">دخول / إنشاء حساب</button>
+        <div style="text-align:center"><button class="linkTxt" onclick="memberReset()">نسيت كلمة المرور؟</button></div>
+      </div>
+      <div class="authMsg" id="memberMsg"></div>
+    </div>
+
+    <!-- الزبون مسجّل -->
+    <div id="memberProfile" style="display:none">
+      <div class="memberCard">
+        <div class="memberHead">
+          <div class="memberAvatar" id="mAvatar">؟</div>
+          <div>
+            <div class="memberName" id="mName">عضو امباير</div>
+            <div class="memberBadge">★ عضو مميز</div>
+          </div>
+        </div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:8px" id="mSince"></div>
+      </div>
+
+      <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">الاسم</label><input type="text" id="pName" placeholder="اسمك"></div>
+      <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">رقم الهاتف</label><input type="tel" id="pPhone" placeholder="07XXXXXXXXX"></div>
+      <div class="row2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">المحافظة</label>
+          <select id="pGov"></select></div>
+        <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">المنطقة</label>
+          <input type="text" id="pArea" placeholder="المنطقة"></div>
+      </div>
+      <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">أقرب نقطة دالة</label><input type="text" id="pMark" placeholder="مثال: مقابل الجامع"></div>
+
+      <button class="authBtn gold" onclick="memberSaveProfile()">حفظ بياناتي</button>
+      <button class="authBtn" onclick="memberSignOut()">تسجيل الخروج</button>
+      <div class="authMsg" id="memberMsg2"></div>
+    </div>
+  </div>
+</div>
 
 <!-- CART / CHECKOUT -->
 <div class="modal-overlay" id="cartOverlay" onclick="if(event.target===this)closeCart()">
@@ -1430,6 +1522,8 @@ async function submitOrder(){
   // حفظ الطلب بلوحة التحكم + عدّادات المبيعات
   anaTrackOrder({
     invoiceNo, name, phone, phone2, gov, area, mark, dateStr,
+    uid: MEMBER ? MEMBER.uid : null,
+    status: 'جديد',
     items: CART.map(it=>({name:it.name, color:it.color||null, qty:it.qty, price:it.price})),
     itemCount: CART.reduce((s,it)=>s+it.qty,0),
     subtotal: subtotal(),
@@ -1438,6 +1532,12 @@ async function submitOrder(){
     delivery: deliveryFee(),
     total: grandTotal()
   });
+
+  // نحدّث عنوان العضو من آخر طلب حتى ينعبّى الفورم المرة الجاية
+  if(MEMBER){
+    MEMBER_PROFILE = {...(MEMBER_PROFILE||{}), name, phone, gov, area, mark};
+    memberSaveProfile().catch(()=>{});
+  }
 
   // عرض شاشة النجاح
   document.getElementById('checkoutView').style.display='none';
@@ -1625,6 +1725,224 @@ async function submitReview(){
   document.querySelectorAll('#starPick svg').forEach((s,i)=>s.classList.toggle('on',i<5));
   btn.disabled=false; btn.textContent='نشر التقييم';
 }
+/* ============================================================
+   عائلة امباير — حساب الزبون (اختياري تماماً)
+
+   الزبون يقدر يطلب بدون حساب مثل ما هو. الحساب يعطيه: متابعة
+   طلباته من أي جهاز، عنوانه محفوظ، وعروض خاصة.
+
+   ملف الزبون بمجموعة customers، وقواعد Firestore تخلي كل زبون
+   يوصل ملفه هو فقط.
+   ============================================================ */
+let MEMBER = null;        // {uid, email, name, photo}
+let MEMBER_PROFILE = null; // {name, phone, gov, area, mark, joinedAt}
+let _authCtx = null;
+
+async function memberAuth(){
+  if(!FIREBASE_READY) return null;
+  if(!_authCtx){
+    _authCtx = (async ()=>{
+      const appMod  = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+      const authMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+      const fsMod   = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const app = appMod.initializeApp(FIREBASE_CONFIG);
+      return {authMod, fsMod, auth: authMod.getAuth(app), db: fsMod.getFirestore(app)};
+    })().catch(e=>{ _authCtx = null; return null; });
+  }
+  return _authCtx;
+}
+
+function openMember(){
+  document.getElementById('memberOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  memberInit();
+}
+function closeMember(){
+  document.getElementById('memberOverlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function memberMsg(id, text, ok){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.style.color = ok ? '#6fbf87' : 'var(--danger)';
+  el.textContent = text;
+}
+
+/* نملأ قائمة المحافظات من نفس قائمة الطلب حتى ما تختلف */
+function fillGovSelect(){
+  const src = document.getElementById('fGov');
+  const dst = document.getElementById('pGov');
+  if(!src || !dst || dst.options.length) return;
+  dst.innerHTML = src.innerHTML;
+}
+
+function renderMember(){
+  const joined = !!MEMBER;
+  document.getElementById('memberJoin').style.display    = joined ? 'none' : '';
+  document.getElementById('memberProfile').style.display = joined ? '' : 'none';
+
+  const btn = document.getElementById('navMember');
+  const txt = document.getElementById('navMemberText');
+  if(joined){
+    const p = MEMBER_PROFILE || {};
+    const label = (p.name || MEMBER.name || MEMBER.email || '').trim();
+    const first = label.split(/[\s@]/)[0] || 'عضو';
+    txt.textContent = first;
+    btn.classList.add('joined');
+
+    document.getElementById('mAvatar').textContent = (first[0] || '؟').toUpperCase();
+    document.getElementById('mName').textContent = label || 'عضو امباير';
+    const since = p.joinedAt ? new Date(p.joinedAt) : null;
+    document.getElementById('mSince').textContent =
+      since ? `عضو منذ ${since.getDate()}/${since.getMonth()+1}/${since.getFullYear()}` : '';
+
+    fillGovSelect();
+    document.getElementById('pName').value  = p.name  || MEMBER.name || '';
+    document.getElementById('pPhone').value = p.phone || '';
+    document.getElementById('pGov').value   = p.gov   || '';
+    document.getElementById('pArea').value  = p.area  || '';
+    document.getElementById('pMark').value  = p.mark  || '';
+  } else {
+    txt.textContent = 'عائلة امباير';
+    btn.classList.remove('joined');
+  }
+  prefillCheckout();
+}
+
+/* عنوان العضو يعبّي فورم الطلب لحاله — بس ما ندوس شي كتبه بيده */
+function prefillCheckout(){
+  if(!MEMBER_PROFILE) return;
+  const p = MEMBER_PROFILE;
+  [['fName',p.name],['fPhone',p.phone],['fGov',p.gov],['fArea',p.area],['fMark',p.mark]]
+    .forEach(([id,val])=>{
+      const el = document.getElementById(id);
+      if(el && val && !el.value.trim()) el.value = val;
+    });
+  if(typeof refreshTotals === 'function') refreshTotals();
+}
+
+async function loadProfile(ctx, uid){
+  try{
+    const ref = ctx.fsMod.doc(ctx.db,'customers',uid);
+    const snap = await ctx.fsMod.getDoc(ref);
+    MEMBER_PROFILE = snap.exists() ? snap.data() : null;
+    if(!MEMBER_PROFILE){
+      MEMBER_PROFILE = {name: MEMBER.name || '', phone:'', gov:'', area:'', mark:'', joinedAt: Date.now()};
+      await ctx.fsMod.setDoc(ref, MEMBER_PROFILE, {merge:true});
+      anaBump({newMembers:1});
+    }
+  }catch(e){ MEMBER_PROFILE = null; }
+}
+
+let memberInited = false;
+async function memberInit(){
+  if(memberInited) return;
+  memberInited = true;
+  const ctx = await memberAuth();
+  if(!ctx){ memberInited = false; return; }
+  ctx.authMod.onAuthStateChanged(ctx.auth, async user=>{
+    if(user){
+      MEMBER = {uid:user.uid, email:user.email||'', name:user.displayName||''};
+      await loadProfile(ctx, user.uid);
+    } else {
+      MEMBER = null; MEMBER_PROFILE = null;
+    }
+    renderMember();
+  });
+}
+
+async function memberGoogle(){
+  const ctx = await memberAuth();
+  if(!ctx) return;
+  const btn = document.getElementById('googleBtn');
+  btn.disabled = true;
+  memberMsg('memberMsg','جارٍ فتح نافذة Google...', true);
+  try{
+    const provider = new ctx.authMod.GoogleAuthProvider();
+    await ctx.authMod.signInWithPopup(ctx.auth, provider);
+    memberMsg('memberMsg','', true);
+    showToast('أهلاً بيك بعائلة امباير 🎉');
+  }catch(e){
+    memberMsg('memberMsg', e && e.code === 'auth/popup-closed-by-user'
+      ? 'سكّرت النافذة قبل ما تخلص'
+      : 'تعذّر الدخول بـ Google، جرب البريد وكلمة المرور', false);
+  }
+  btn.disabled = false;
+}
+
+/* دخول أو إنشاء حساب بنفس الزر — إذا الحساب موجود يدخل، وإلا ينشئه */
+async function memberEmailAuth(){
+  const ctx = await memberAuth();
+  if(!ctx) return;
+  const email = document.getElementById('mEmail').value.trim();
+  const pass  = document.getElementById('mPass').value;
+  if(!email || pass.length < 6){
+    memberMsg('memberMsg','اكتب بريدك وكلمة مرور ٦ أحرف فأكثر', false);
+    return;
+  }
+  const btn = document.getElementById('mAuthBtn');
+  btn.disabled = true; btn.textContent = 'جارٍ...';
+  try{
+    await ctx.authMod.signInWithEmailAndPassword(ctx.auth, email, pass);
+    showToast('أهلاً بعودتك 👋');
+  }catch(e){
+    const code = e && e.code;
+    if(code === 'auth/user-not-found' || code === 'auth/invalid-credential'){
+      try{
+        await ctx.authMod.createUserWithEmailAndPassword(ctx.auth, email, pass);
+        showToast('أهلاً بيك بعائلة امباير 🎉');
+      }catch(e2){
+        memberMsg('memberMsg', e2 && e2.code === 'auth/email-already-in-use'
+          ? 'كلمة المرور غير صحيحة لهذا البريد'
+          : 'تعذّر إنشاء الحساب، تأكد من البريد', false);
+      }
+    } else {
+      memberMsg('memberMsg','تعذّر الدخول، تأكد من البريد وكلمة المرور', false);
+    }
+  }
+  btn.disabled = false; btn.textContent = 'دخول / إنشاء حساب';
+}
+
+async function memberReset(){
+  const ctx = await memberAuth();
+  if(!ctx) return;
+  const email = document.getElementById('mEmail').value.trim();
+  if(!email){ memberMsg('memberMsg','اكتب بريدك بالخانة فوق أولاً', false); return; }
+  try{ await ctx.authMod.sendPasswordResetEmail(ctx.auth, email); }catch(e){}
+  memberMsg('memberMsg','إذا هذا البريد مسجّل، وصلك رابط تغيير كلمة المرور', true);
+}
+
+async function memberSaveProfile(){
+  const ctx = await memberAuth();
+  if(!ctx || !MEMBER) return;
+  const prof = {
+    name:  document.getElementById('pName').value.trim(),
+    phone: document.getElementById('pPhone').value.trim(),
+    gov:   document.getElementById('pGov').value,
+    area:  document.getElementById('pArea').value.trim(),
+    mark:  document.getElementById('pMark').value.trim(),
+    joinedAt: (MEMBER_PROFILE && MEMBER_PROFILE.joinedAt) || Date.now(),
+    email: MEMBER.email || ''
+  };
+  try{
+    await ctx.fsMod.setDoc(ctx.fsMod.doc(ctx.db,'customers',MEMBER.uid), prof, {merge:true});
+    MEMBER_PROFILE = prof;
+    renderMember();
+    memberMsg('memberMsg2','تم حفظ بياناتك ✓', true);
+  }catch(e){
+    memberMsg('memberMsg2','تعذّر الحفظ، حاول مرة ثانية', false);
+  }
+}
+
+async function memberSignOut(){
+  const ctx = await memberAuth();
+  if(!ctx) return;
+  await ctx.authMod.signOut(ctx.auth);
+  closeMember();
+  showToast('تم تسجيل الخروج');
+}
+
 /* ===== مساعد امباير الذكي ===== */
 let aiHistory = [];
 let aiOpen = false;
@@ -1757,6 +2075,7 @@ initCloudCoupons();
 initCloudSettings();
 initAnalytics();
 aiLoadHistory();
+memberInit();
 
 render();
 observeFades();

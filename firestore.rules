@@ -5,51 +5,76 @@
 //   Firebase Console ← Firestore Database ← Rules
 //   الصق المحتوى أدناه ثم اضغط Publish
 //
-// ملاحظة: إذا عندك قواعد إضافية لمجموعات ثانية، ادمجها مع هذه
-// بدل ما تستبدلها بالكامل.
+// ملاحظة مهمة: صار الزبائن يقدرون يسوون حسابات بالموقع، فما عاد
+// ينفع "أي حساب مسجّل" يقرأ الطلبات — لأن هذا يعني كل زبون يشوف
+// بيانات باقي الزبائن. لهذا نميّز حسابات المتجر بالبريد.
 // ============================================================
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // حسابات المتجر: صاحب المتجر، وحساب البوت اللي تستخدمه وظائف السيرفر
+    function isShop() {
+      return request.auth != null && request.auth.token.email in [
+        'alazzawi913@gmail.com',
+        'bot@empire.iq'
+      ];
+    }
+
+    // صاحب الطلب نفسه (الطلبات القديمة بلا uid ما تنطبق عليها)
+    function isOrderOwner() {
+      return request.auth != null
+             && resource.data.get('uid', '') != ''
+             && resource.data.get('uid', '') == request.auth.uid;
+    }
+
     // المنتجات: الكل يقرأ، والتعديل من لوحة التحكم فقط
     match /products/{doc} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isShop();
     }
 
     // أكواد الخصم: الموقع يقرأها ليتحقق منها، والإنشاء من لوحة التحكم فقط
     match /discountCodes/{doc} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isShop();
     }
 
     // إعدادات الموقع (تاريخ الأسعار، شريط الأخبار، الواجهة الإعلانية)
     match /settings/{doc} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isShop();
     }
 
     // التقييمات: الزبون يكتب تقييمه، والحذف من لوحة التحكم فقط
     match /reviews/{doc} {
       allow read: if true;
       allow create: if true;
-      allow update, delete: if request.auth != null;
+      allow update, delete: if isShop();
     }
 
     // الإحصائيات: الموقع يزيد العدّادات بدون تسجيل دخول،
-    // والقراءة محصورة بلوحة التحكم حتى لا يشوف أحد أرقام المتجر
+    // والقراءة محصورة بالمتجر حتى لا يشوف أحد أرقام المبيعات
     match /analytics/{day} {
-      allow read: if request.auth != null;
+      allow read: if isShop();
       allow create, update: if true;
-      allow delete: if request.auth != null;
+      allow delete: if isShop();
     }
 
-    // الطلبات: الزبون ينشئ طلبه فقط، وقراءتها وتعديلها من لوحة التحكم
+    // الطلبات: المتجر يشوف الكل، والزبون المسجّل يشوف طلباته هو فقط.
+    // التعديل والحذف من المتجر حصراً (تعديل الزبون يمر بوظيفة سيرفر).
     match /orders/{doc} {
-      allow read, update, delete: if request.auth != null;
+      allow read: if isShop() || isOrderOwner();
       allow create: if true;
+      allow update, delete: if isShop();
+    }
+
+    // ملف الزبون: كل زبون يوصل ملفه هو فقط، والمتجر يقرأ القائمة
+    match /customers/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read: if isShop();
+      allow delete: if isShop();
     }
   }
 }
