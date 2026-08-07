@@ -65,6 +65,24 @@ nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(30,38,56,.92);ba
 .nav-member:hover{border-color:var(--line2);color:var(--gold2)}
 .nav-member.joined{border-color:var(--line2);color:var(--gold2);background:rgba(212,175,85,.08)}
 .nav-member.joined::before{content:'★ ';color:var(--gold2)}
+.ordersList{display:flex;flex-direction:column;gap:10px}
+.oCard{background:var(--navy2);border:1px solid var(--line);border-radius:12px;padding:13px;cursor:pointer;transition:.2s}
+.oCard:hover{border-color:var(--line2)}
+.oTop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.oInv{font-weight:700;font-size:.82rem;color:var(--gold2)}
+.oSum{font-size:.78rem;color:var(--grey);line-height:1.7}
+.oChip{font-size:.68rem;font-weight:700;border-radius:20px;padding:3px 10px;white-space:nowrap}
+.st-new{background:rgba(212,175,85,.15);color:var(--gold2)}
+.st-prep{background:rgba(111,191,135,.13);color:#6fbf87}
+.st-ship{background:rgba(90,150,230,.15);color:#7fb0ec}
+.st-done{background:rgba(111,191,135,.2);color:#6fbf87}
+.st-cancel{background:rgba(224,100,95,.13);color:var(--danger)}
+.oSteps{display:flex;gap:4px;margin-top:10px}
+.oStep{flex:1;height:4px;border-radius:3px;background:var(--navy3)}
+.oStep.on{background:linear-gradient(90deg,var(--gold),var(--gold2))}
+.oDetail{background:var(--navy2);border:1px solid var(--line2);border-radius:12px;padding:14px;margin-bottom:12px}
+.oRow{display:flex;justify-content:space-between;font-size:.8rem;padding:4px 0;color:var(--grey)}
+.oRow b{color:var(--white);font-weight:700}
 .memberCard{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
 .memberHead{display:flex;align-items:center;gap:12px;margin-bottom:4px}
 .memberAvatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a2132;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;flex-shrink:0}
@@ -700,10 +718,46 @@ window.applyEmpSettings = function(data){
       </div>
       <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">أقرب نقطة دالة</label><input type="text" id="pMark" placeholder="مثال: مقابل الجامع"></div>
 
-      <button class="authBtn gold" onclick="memberSaveProfile()">حفظ بياناتي</button>
+      <button class="authBtn gold" onclick="memberOrders()">📦 طلباتي وحالتها</button>
+      <button class="authBtn" onclick="memberSaveProfile()">حفظ بياناتي</button>
       <button class="authBtn" onclick="memberSignOut()">تسجيل الخروج</button>
       <div class="authMsg" id="memberMsg2"></div>
     </div>
+  </div>
+</div>
+
+<!-- ===== طلباتي / متابعة الطلب ===== -->
+<div class="overlay" id="ordersOverlay" onclick="if(event.target===this)closeOrders()">
+  <div class="sheet" style="max-width:480px">
+    <div class="m-head">
+      <button class="modal-close" onclick="closeOrders()">✕</button>
+    </div>
+    <h2 style="font-size:1.1rem;margin-bottom:14px" id="ordersTitle">طلباتي</h2>
+
+    <!-- متابعة برقم الفاتورة (للي بلا حساب) -->
+    <div id="trackBox">
+      <p style="font-size:.83rem;color:var(--grey);line-height:1.7;margin-bottom:12px">
+        اكتب رقم فاتورتك ورقم هاتفك حتى تشوف طلبك وحالته
+      </p>
+      <div class="field"><input type="text" id="tInv" placeholder="EMP-20260806-0001" style="text-transform:uppercase"></div>
+      <div class="field"><input type="tel" id="tPhone" placeholder="رقم هاتفك"></div>
+      <button class="authBtn gold" id="tBtn" onclick="trackOrder()">اعرض طلبي</button>
+      <div class="authMsg" id="trackMsg"></div>
+      <div style="text-align:center;margin-top:10px">
+        <button class="linkTxt" onclick="closeOrders();openMember()">أو سجّل دخولك وشوف كل طلباتك</button>
+      </div>
+    </div>
+
+    <!-- قائمة طلبات العضو -->
+    <div id="myOrdersBox" style="display:none">
+      <div id="myOrdersList" class="ordersList"></div>
+      <div id="myOrdersEmpty" style="display:none;text-align:center;color:var(--muted);padding:30px 10px;font-size:.86rem">
+        ما عندك طلبات بعد
+      </div>
+    </div>
+
+    <!-- تفاصيل طلب واحد -->
+    <div id="orderDetail" style="display:none"></div>
   </div>
 </div>
 
@@ -786,6 +840,7 @@ window.applyEmpSettings = function(data){
           سيتواصل معك مندوبنا على رقم هاتفك لتأكيد الاستلام
         </div>
         <button class="pdf-btn" onclick="openReceipt(LAST_ORDER)">حفظ نسخة من الطلب PDF</button>
+        <button class="pdf-btn" style="margin-top:8px" onclick="closeCart();trackLastOrder()">تابع طلبك أو عدّله</button>
       </div>
     </div>
   </div>
@@ -1942,6 +1997,228 @@ async function memberSignOut(){
   closeMember();
   showToast('تم تسجيل الخروج');
 }
+
+/* ============================================================
+   طلباتي / متابعة الطلب
+
+   العضو يشوف كل طلباته (قواعد Firestore تخليه يقرأ الطلبات اللي
+   تحمل معرّفه هو فقط). واللي بلا حساب يتابع برقم الفاتورة + هاتفه
+   عبر وظيفة السيرفر.
+   ============================================================ */
+const STATUS_ORDER = ['جديد','قيد التجهيز','بالتوصيل','تم التسليم'];
+const STATUS_CLASS = {'جديد':'st-new','قيد التجهيز':'st-prep','بالتوصيل':'st-ship','تم التسليم':'st-done','ملغى':'st-cancel'};
+
+let LAST_TRACKED = null; // {order, phone} للتعديل والإلغاء
+
+function openOrders(){
+  document.getElementById('ordersOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  showOrdersHome();
+}
+function closeOrders(){
+  document.getElementById('ordersOverlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function showOrdersHome(){
+  document.getElementById('orderDetail').style.display='none';
+  document.getElementById('ordersTitle').textContent = MEMBER ? 'طلباتي' : 'تابع طلبك';
+  document.getElementById('trackBox').style.display    = MEMBER ? 'none' : '';
+  document.getElementById('myOrdersBox').style.display = MEMBER ? '' : 'none';
+  if(MEMBER) loadMyOrders();
+}
+
+function statusChip(st){
+  const cls = STATUS_CLASS[st] || 'st-new';
+  return `<span class="oChip ${cls}">${escapeHtml(st||'جديد')}</span>`;
+}
+function statusSteps(st){
+  if(st === 'ملغى') return '';
+  const i = STATUS_ORDER.indexOf(st || 'جديد');
+  return `<div class="oSteps">${STATUS_ORDER.map((_,n)=>
+    `<div class="oStep${n<=i?' on':''}"></div>`).join('')}</div>`;
+}
+
+function orderCard(o, onclick){
+  const count = (o.items||[]).reduce((s,it)=>s+(it.qty||1),0);
+  return `<div class="oCard" onclick="${onclick}">
+    <div class="oTop">
+      <span class="oInv">${escapeHtml(o.invoiceNo||'—')}</span>
+      ${statusChip(o.status)}
+    </div>
+    <div class="oSum">${count} قطعة · ${fmt(o.total||0)} د.ع<br>${escapeHtml(o.dateStr||'')}</div>
+    ${statusSteps(o.status)}
+  </div>`;
+}
+
+async function loadMyOrders(){
+  const list = document.getElementById('myOrdersList');
+  const empty = document.getElementById('myOrdersEmpty');
+  list.innerHTML = '<div style="color:var(--muted);font-size:.85rem;text-align:center;padding:20px">جارٍ التحميل...</div>';
+  const ctx = await memberAuth();
+  if(!ctx || !MEMBER){ list.innerHTML=''; empty.style.display='block'; return; }
+  try{
+    // مرشّح واحد بس حتى ما نحتاج فهرس مركّب — والترتيب بالمتصفح
+    const q = ctx.fsMod.query(
+      ctx.fsMod.collection(ctx.db,'orders'),
+      ctx.fsMod.where('uid','==',MEMBER.uid),
+      ctx.fsMod.limit(30)
+    );
+    const snap = await ctx.fsMod.getDocs(q);
+    const rows = snap.docs.map(d=>d.data()).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    empty.style.display = rows.length ? 'none' : 'block';
+    list.innerHTML = rows.map((o,i)=>{
+      MY_ORDERS[i] = o;
+      return orderCard(o, `showOrderDetail(MY_ORDERS[${i}])`);
+    }).join('');
+  }catch(e){
+    list.innerHTML = '<div style="color:var(--danger);font-size:.85rem;text-align:center;padding:20px">تعذّر تحميل طلباتك، حاول بعد قليل</div>';
+  }
+}
+const MY_ORDERS = [];
+
+async function trackOrder(){
+  const inv = document.getElementById('tInv').value.trim().toUpperCase();
+  const phone = document.getElementById('tPhone').value.trim();
+  const msg = document.getElementById('trackMsg');
+  const btn = document.getElementById('tBtn');
+  if(!inv || !phone){ msg.style.color='var(--danger)'; msg.textContent='اكتب رقم الفاتورة ورقم هاتفك'; return; }
+  btn.disabled = true; btn.textContent='جارٍ البحث...';
+  msg.textContent='';
+  try{
+    const res = await fetch('/.netlify/functions/track-order', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({invoiceNo:inv, phone})
+    });
+    const data = await res.json();
+    if(data.ok){
+      LAST_TRACKED = {order:data.order, phone};
+      showOrderDetail(data.order, phone);
+    } else {
+      msg.style.color='var(--danger)';
+      msg.textContent = data.error || 'ما لكينا الطلب';
+    }
+  }catch(e){
+    msg.style.color='var(--danger)';
+    msg.textContent='تعذّر الاتصال، حاول بعد قليل';
+  }
+  btn.disabled = false; btn.textContent='اعرض طلبي';
+}
+
+function showOrderDetail(o, phone){
+  LAST_TRACKED = {order:o, phone: phone || (LAST_TRACKED && LAST_TRACKED.phone) || ''};
+  document.getElementById('trackBox').style.display='none';
+  document.getElementById('myOrdersBox').style.display='none';
+  document.getElementById('ordersTitle').textContent = 'تفاصيل الطلب';
+  const items = (o.items||[]).map(it=>
+    `<div class="oRow"><span>${escapeHtml(it.name||'')}${it.color?' — '+escapeHtml(it.color):''} × ${it.qty||1}</span><b>${fmt((it.price||0)*(it.qty||1))}</b></div>`
+  ).join('');
+  const editable = o.editable && (MEMBER || (LAST_TRACKED && LAST_TRACKED.phone));
+  document.getElementById('orderDetail').style.display='';
+  document.getElementById('orderDetail').innerHTML = `
+    <div class="oDetail">
+      <div class="oTop"><span class="oInv">${escapeHtml(o.invoiceNo||'—')}</span>${statusChip(o.status)}</div>
+      ${statusSteps(o.status)}
+      <div class="oSum" style="margin-top:10px">${escapeHtml(o.dateStr||'')}</div>
+    </div>
+    <div class="oDetail">
+      ${items}
+      <div class="oRow" style="border-top:1px solid var(--line);margin-top:6px;padding-top:8px"><span>مجموع المنتجات</span><b>${fmt(o.subtotal)}</b></div>
+      ${o.couponCode?`<div class="oRow"><span>خصم (${escapeHtml(o.couponCode)})</span><b>− ${fmt(o.discount)}</b></div>`:''}
+      <div class="oRow"><span>أجور التوصيل</span><b>${fmt(o.delivery)}</b></div>
+      <div class="oRow" style="font-size:.92rem"><span>المجموع النهائي</span><b style="color:var(--gold2)">${fmt(o.total)} د.ع</b></div>
+    </div>
+    <div class="oDetail">
+      <div class="oRow"><span>الاسم</span><b>${escapeHtml(o.name||'')}</b></div>
+      <div class="oRow"><span>العنوان</span><b>${escapeHtml(o.gov||'')}${o.area?' — '+escapeHtml(o.area):''}</b></div>
+      ${o.mark?`<div class="oRow"><span>نقطة دالة</span><b>${escapeHtml(o.mark)}</b></div>`:''}
+    </div>
+    ${editable ? `
+      <button class="authBtn" onclick="openEditOrder()">تعديل بيانات التوصيل</button>
+      <button class="authBtn" style="color:var(--danger);border-color:rgba(224,100,95,.4)" onclick="cancelMyOrder()">إلغاء الطلب</button>
+      <div style="font-size:.74rem;color:var(--muted);text-align:center;line-height:1.6">التعديل متاح خلال نصف ساعة من الطلب وقبل ما يبدي التجهيز</div>
+    ` : `<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:6px 0 12px;line-height:1.7">${
+        o.status==='ملغى' ? 'هذا الطلب ملغى' : 'ما عاد ينفع التعديل — طلبك دخل مرحلة التجهيز'
+      }</div>`}
+    <div id="editBox" style="display:none;margin-top:6px">
+      <div class="field"><input type="text" id="eName" placeholder="الاسم" value="${escapeHtml(o.name||'')}"></div>
+      <div class="field"><select id="eGov"></select></div>
+      <div class="field"><input type="text" id="eArea" placeholder="المنطقة" value="${escapeHtml(o.area||'')}"></div>
+      <div class="field"><input type="text" id="eMark" placeholder="أقرب نقطة دالة" value="${escapeHtml(o.mark||'')}"></div>
+      <div class="field"><input type="tel" id="ePhone2" placeholder="هاتف ثاني (اختياري)" value="${escapeHtml(o.phone2||'')}"></div>
+      <button class="authBtn gold" id="eSave" onclick="saveOrderEdit()">حفظ التعديل</button>
+    </div>
+    <div class="authMsg" id="editMsg"></div>
+    <div style="text-align:center;margin-top:8px"><button class="linkTxt" onclick="showOrdersHome()">رجوع</button></div>`;
+}
+
+function openEditOrder(){
+  const box = document.getElementById('editBox');
+  box.style.display = box.style.display === 'none' ? '' : 'none';
+  const src = document.getElementById('fGov'), dst = document.getElementById('eGov');
+  if(src && dst && !dst.options.length){
+    dst.innerHTML = src.innerHTML;
+    dst.value = (LAST_TRACKED && LAST_TRACKED.order.gov) || '';
+  }
+}
+
+async function sendOrderChange(payload, btnId, okText){
+  const msg = document.getElementById('editMsg');
+  const btn = btnId && document.getElementById(btnId);
+  if(btn){ btn.disabled = true; btn.textContent = 'جارٍ...'; }
+  msg.textContent = '';
+  try{
+    const res = await fetch('/.netlify/functions/edit-order', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        invoiceNo: LAST_TRACKED.order.invoiceNo,
+        phone: LAST_TRACKED.phone,
+        ...payload
+      })
+    });
+    const data = await res.json();
+    if(data.ok){
+      showToast(okText);
+      showOrderDetail(data.order, LAST_TRACKED.phone);
+      if(MEMBER) loadMyOrders();
+    } else {
+      msg.style.color='var(--danger)';
+      msg.textContent = data.error || 'تعذّر التنفيذ';
+      if(btn){ btn.disabled = false; btn.textContent = 'حفظ التعديل'; }
+    }
+  }catch(e){
+    msg.style.color='var(--danger)';
+    msg.textContent = 'تعذّر الاتصال، حاول بعد قليل';
+    if(btn){ btn.disabled = false; btn.textContent = 'حفظ التعديل'; }
+  }
+}
+
+function saveOrderEdit(){
+  sendOrderChange({
+    name:  document.getElementById('eName').value.trim(),
+    gov:   document.getElementById('eGov').value,
+    area:  document.getElementById('eArea').value.trim(),
+    mark:  document.getElementById('eMark').value.trim(),
+    phone2:document.getElementById('ePhone2').value.trim()
+  }, 'eSave', 'تم تعديل طلبك ✓');
+}
+
+function cancelMyOrder(){
+  if(!confirm('متأكد تريد تلغي الطلب؟ ما راح ينوصّل.')) return;
+  sendOrderChange({action:'cancel'}, null, 'تم إلغاء طلبك');
+}
+
+/* بعد الطلب مباشرة: نفتح تفاصيله بلا ما يكتب رقم الفاتورة */
+function trackLastOrder(){
+  if(!LAST_ORDER){ openOrders(); return; }
+  openOrders();
+  document.getElementById('tInv').value = LAST_ORDER.invoiceNo || '';
+  document.getElementById('tPhone').value = LAST_ORDER.phone || '';
+  if(LAST_ORDER.invoiceNo && LAST_ORDER.phone) trackOrder();
+}
+
+/* العضو يوصل لطلباته من لوحة حسابه */
+async function memberOrders(){ closeMember(); openOrders(); }
 
 /* ===== مساعد امباير الذكي ===== */
 let aiHistory = [];
