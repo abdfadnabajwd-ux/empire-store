@@ -312,6 +312,7 @@ footer{background:#1a2132;border-top:1px solid var(--line);padding:64px 24px 30p
 .f-input.err{border-color:#e07070}
 select.f-input{appearance:none;cursor:pointer}
 .f-row{display:flex;gap:10px}
+.f-group{margin-bottom:12px}
 .f-row>div{flex:1}
 .f-note{font-size:.7rem;color:var(--muted);margin-top:5px}
 .back-link{background:none;border:none;color:var(--gold2);font-family:'Cairo',sans-serif;font-size:.8rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:6px}
@@ -658,8 +659,8 @@ window.applyEmpSettings = function(data){
 
 
 <!-- ===== عائلة امباير — حساب الزبون (اختياري) ===== -->
-<div class="overlay" id="memberOverlay" onclick="if(event.target===this)closeMember()">
-  <div class="sheet" style="max-width:460px">
+<div class="modal-overlay" id="memberOverlay" onclick="if(event.target===this)closeMember()">
+  <div class="modal" style="max-width:460px">
     <div class="m-head">
       <button class="modal-close" onclick="closeMember()">✕</button>
     </div>
@@ -687,8 +688,8 @@ window.applyEmpSettings = function(data){
 
         <div class="authDiv">أو بالبريد</div>
 
-        <div class="field"><input type="email" id="mEmail" placeholder="بريدك الإلكتروني" autocomplete="email"></div>
-        <div class="field"><input type="password" id="mPass" placeholder="كلمة المرور" autocomplete="current-password"></div>
+        <div class="f-group"><input class="f-input" type="email" id="mEmail" placeholder="بريدك الإلكتروني" autocomplete="email"></div>
+        <div class="f-group"><input class="f-input" type="password" id="mPass" placeholder="كلمة المرور" autocomplete="current-password"></div>
         <button class="authBtn gold" id="mAuthBtn" onclick="memberEmailAuth()">دخول / إنشاء حساب</button>
         <div style="text-align:center"><button class="linkTxt" onclick="memberReset()">نسيت كلمة المرور؟</button></div>
       </div>
@@ -708,15 +709,15 @@ window.applyEmpSettings = function(data){
         <div style="font-size:.78rem;color:var(--muted);margin-top:8px" id="mSince"></div>
       </div>
 
-      <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">الاسم</label><input type="text" id="pName" placeholder="اسمك"></div>
-      <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">رقم الهاتف</label><input type="tel" id="pPhone" placeholder="07XXXXXXXXX"></div>
-      <div class="row2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">المحافظة</label>
-          <select id="pGov"></select></div>
-        <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">المنطقة</label>
-          <input type="text" id="pArea" placeholder="المنطقة"></div>
+      <div class="f-group"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">الاسم</label><input class="f-input" type="text" id="pName" placeholder="اسمك"></div>
+      <div class="f-group"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">رقم الهاتف</label><input class="f-input" type="tel" id="pPhone" placeholder="07XXXXXXXXX"></div>
+      <div class="f-row">
+        <div class="f-group"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">المحافظة</label>
+          <select class="f-input" id="pGov"></select></div>
+        <div class="f-group"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">المنطقة</label>
+          <input class="f-input" type="text" id="pArea" placeholder="المنطقة"></div>
       </div>
-      <div class="field"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">أقرب نقطة دالة</label><input type="text" id="pMark" placeholder="مثال: مقابل الجامع"></div>
+      <div class="f-group"><label style="display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px">أقرب نقطة دالة</label><input class="f-input" type="text" id="pMark" placeholder="مثال: مقابل الجامع"></div>
 
       <button class="authBtn gold" onclick="memberOrders()">📦 طلباتي وحالتها</button>
       <button class="authBtn" onclick="memberSaveProfile()">حفظ بياناتي</button>
@@ -727,8 +728,8 @@ window.applyEmpSettings = function(data){
 </div>
 
 <!-- ===== طلباتي / متابعة الطلب ===== -->
-<div class="overlay" id="ordersOverlay" onclick="if(event.target===this)closeOrders()">
-  <div class="sheet" style="max-width:480px">
+<div class="modal-overlay" id="ordersOverlay" onclick="if(event.target===this)closeOrders()">
+  <div class="modal" style="max-width:480px">
     <div class="m-head">
       <button class="modal-close" onclick="closeOrders()">✕</button>
     </div>
@@ -739,8 +740,8 @@ window.applyEmpSettings = function(data){
       <p style="font-size:.83rem;color:var(--grey);line-height:1.7;margin-bottom:12px">
         اكتب رقم فاتورتك ورقم هاتفك حتى تشوف طلبك وحالته
       </p>
-      <div class="field"><input type="text" id="tInv" placeholder="EMP-20260806-0001" style="text-transform:uppercase"></div>
-      <div class="field"><input type="tel" id="tPhone" placeholder="رقم هاتفك"></div>
+      <div class="f-group"><input class="f-input" type="text" id="tInv" placeholder="EMP-20260806-0001" style="text-transform:uppercase"></div>
+      <div class="f-group"><input class="f-input" type="tel" id="tPhone" placeholder="رقم هاتفك"></div>
       <button class="authBtn gold" id="tBtn" onclick="trackOrder()">اعرض طلبي</button>
       <div class="authMsg" id="trackMsg"></div>
       <div style="text-align:center;margin-top:10px">
@@ -2141,11 +2142,11 @@ function showOrderDetail(o, phone){
         o.status==='ملغى' ? 'هذا الطلب ملغى' : 'ما عاد ينفع التعديل — طلبك دخل مرحلة التجهيز'
       }</div>`}
     <div id="editBox" style="display:none;margin-top:6px">
-      <div class="field"><input type="text" id="eName" placeholder="الاسم" value="${escapeHtml(o.name||'')}"></div>
-      <div class="field"><select id="eGov"></select></div>
-      <div class="field"><input type="text" id="eArea" placeholder="المنطقة" value="${escapeHtml(o.area||'')}"></div>
-      <div class="field"><input type="text" id="eMark" placeholder="أقرب نقطة دالة" value="${escapeHtml(o.mark||'')}"></div>
-      <div class="field"><input type="tel" id="ePhone2" placeholder="هاتف ثاني (اختياري)" value="${escapeHtml(o.phone2||'')}"></div>
+      <div class="f-group"><input class="f-input" type="text" id="eName" placeholder="الاسم" value="${escapeHtml(o.name||'')}"></div>
+      <div class="f-group"><select class="f-input" id="eGov"></select></div>
+      <div class="f-group"><input class="f-input" type="text" id="eArea" placeholder="المنطقة" value="${escapeHtml(o.area||'')}"></div>
+      <div class="f-group"><input class="f-input" type="text" id="eMark" placeholder="أقرب نقطة دالة" value="${escapeHtml(o.mark||'')}"></div>
+      <div class="f-group"><input class="f-input" type="tel" id="ePhone2" placeholder="هاتف ثاني (اختياري)" value="${escapeHtml(o.phone2||'')}"></div>
       <button class="authBtn gold" id="eSave" onclick="saveOrderEdit()">حفظ التعديل</button>
     </div>
     <div class="authMsg" id="editMsg"></div>
