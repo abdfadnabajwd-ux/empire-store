@@ -101,6 +101,14 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
 .ordInv{font-weight:700;font-size:.8rem;color:var(--gold2)}
 .ordTotal{font-weight:800;font-size:.85rem}
 .ordMeta{font-size:.74rem;color:var(--grey);line-height:1.8}
+.ordStatus{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.ordStatus select{width:auto;flex:1;min-width:120px;padding:7px 10px;font-size:.78rem}
+.oChip{font-size:.68rem;font-weight:700;border-radius:20px;padding:3px 10px;white-space:nowrap}
+.st-new{background:rgba(212,175,85,.15);color:var(--gold2)}
+.st-prep{background:rgba(111,191,135,.13);color:#6fbf87}
+.st-ship{background:rgba(90,150,230,.15);color:#7fb0ec}
+.st-done{background:rgba(111,191,135,.2);color:#6fbf87}
+.st-cancel{background:rgba(224,100,95,.13);color:var(--danger)}
 .ordItems{font-size:.73rem;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--line);line-height:1.8}
 </style>
 </head>
@@ -138,6 +146,7 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
       <button class="btn btn-gold btn-sm" id="tabProductsBtn" onclick="switchTab('products')">المنتجات</button>
       <button class="btn btn-ghost btn-sm" id="tabCouponsBtn" onclick="switchTab('coupons')">أكواد الخصم</button>
       <button class="btn btn-ghost btn-sm" id="tabStatsBtn" onclick="switchTab('stats')">الإحصائيات</button>
+      <button class="btn btn-ghost btn-sm" id="tabMembersBtn" onclick="switchTab('members')">الأعضاء</button>
       <button class="btn btn-ghost btn-sm" id="tabSettingsBtn" onclick="switchTab('settings')">إعدادات الموقع</button>
     </div>
 
@@ -224,6 +233,19 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
       <div id="statsEmpty" class="empty" style="display:none">
         ما وصلت بيانات بعد. الإحصائيات تبدأ تنجمع من أول زيارة للموقع بعد تفعيل هذه الميزة.
       </div>
+    </div>
+
+    <div id="membersTab" style="display:none">
+      <div class="summary">
+        <div class="stat"><b id="statMembers">0</b><span>إجمالي الأعضاء</span></div>
+        <div class="stat"><b id="statMembersPhone">0</b><span>عندهم رقم هاتف</span></div>
+      </div>
+      <div class="searchBox"><input type="text" id="memberSearch" placeholder="ابحث باسم أو رقم..."></div>
+      <div class="tools">
+        <button class="btn btn-ghost btn-sm" id="copyPhonesBtn">نسخ كل الأرقام</button>
+      </div>
+      <div id="membersList" class="plist"></div>
+      <div id="membersEmpty" class="empty" style="display:none">ما انضم أحد بعد.</div>
     </div>
 
     <div id="settingsTab" style="display:none">
@@ -483,7 +505,7 @@ let pendingCouponDelId = null;
 let imgSource = 'lib'; // 'lib' or 'upload'
 let uploadedImgUrl = null; // holds base64 data URL for uploaded images
 
-const TABS = ['products','coupons','stats','settings'];
+const TABS = ['products','coupons','stats','members','settings'];
 function switchTab(tab){
   TABS.forEach(t=>{
     document.getElementById(t+'Tab').style.display = t===tab ? '' : 'none';
@@ -515,6 +537,7 @@ async function initFirebase(){
       listenCoupons();
       listenSettings();
       listenAnalytics();
+      listenMembers();
     } else {
       document.getElementById('loginScreen').style.display='flex';
       document.getElementById('dash').style.display='none';
@@ -869,6 +892,12 @@ function renderAnalytics(){
           <span class="ordInv">${escapeHtml(o.invoiceNo||'—')}</span>
           <span class="ordTotal">${fmtNum(o.total)} د.ع</span>
         </div>
+        <div class="ordStatus">
+          ${statusChip(o.status)}
+          <select onchange="setOrderStatus('${o.id}', this.value)">
+            ${ORDER_STATUSES.map(st=>`<option${st===(o.status||'جديد')?' selected':''}>${st}</option>`).join('')}
+          </select>
+        </div>
         <div class="ordMeta">
           ${escapeHtml(o.name||'')} — ${escapeHtml(o.phone||'')}<br>
           ${escapeHtml(o.gov||'')}${o.area?' — '+escapeHtml(o.area):''}<br>
@@ -880,6 +909,64 @@ function renderAnalytics(){
       </div>`).join('')
     : '<div class="small">ما توجد طلبات بهذه المدة</div>';
 }
+
+/* ===== حالة الطلب ===== */
+const ORDER_STATUSES = ['جديد','قيد التجهيز','بالتوصيل','تم التسليم','ملغى'];
+const STATUS_CLASS = {'جديد':'st-new','قيد التجهيز':'st-prep','بالتوصيل':'st-ship','تم التسليم':'st-done','ملغى':'st-cancel'};
+function statusChip(st){
+  const v = st || 'جديد';
+  return `<span class="oChip ${STATUS_CLASS[v]||'st-new'}">${escapeHtml(v)}</span>`;
+}
+async function setOrderStatus(id, status){
+  try{
+    await fsMod.updateDoc(fsMod.doc(db,'orders',id), {status, statusAt: Date.now()});
+    showToast('تم تحديث حالة الطلب');
+  }catch(e){
+    showToast('تعذّر التحديث');
+  }
+}
+
+/* ===== الأعضاء ===== */
+let members = [];
+function listenMembers(){
+  fsMod.onSnapshot(fsMod.collection(db,'customers'), snap=>{
+    members = snap.docs.map(d=>({id:d.id, ...d.data()}))
+                       .sort((a,b)=>(b.joinedAt||0)-(a.joinedAt||0));
+    renderMembers();
+  }, err=>console.warn('تعذّر تحميل الأعضاء', err));
+}
+function renderMembers(){
+  const q = (document.getElementById('memberSearch').value||'').trim().toLowerCase();
+  const shown = q ? members.filter(m=>
+    (m.name||'').toLowerCase().includes(q) ||
+    (m.phone||'').includes(q) ||
+    (m.email||'').toLowerCase().includes(q)) : members;
+
+  document.getElementById('statMembers').textContent = members.length;
+  document.getElementById('statMembersPhone').textContent = members.filter(m=>(m.phone||'').trim()).length;
+  document.getElementById('membersEmpty').style.display = members.length ? 'none' : 'block';
+
+  document.getElementById('membersList').innerHTML = shown.map(m=>{
+    const since = m.joinedAt ? new Date(m.joinedAt) : null;
+    return `<div class="pcard">
+      <div class="ph" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem">★</div>
+      <div class="pinfo">
+        <div class="pn">${escapeHtml(m.name||'عضو بلا اسم')}</div>
+        <div class="pm">${escapeHtml(m.phone||'—')}${m.email?' · '+escapeHtml(m.email):''}</div>
+        <div class="pp" style="color:var(--grey);font-weight:400">${escapeHtml(m.gov||'')}${m.area?' — '+escapeHtml(m.area):''}${
+          since?` · انضم ${since.getDate()}/${since.getMonth()+1}/${since.getFullYear()}`:''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+document.getElementById('memberSearch').addEventListener('input', renderMembers);
+document.getElementById('copyPhonesBtn').addEventListener('click', ()=>{
+  const phones = members.map(m=>(m.phone||'').trim()).filter(Boolean);
+  if(!phones.length){ showToast('ماكو أرقام محفوظة'); return; }
+  navigator.clipboard.writeText(phones.join('\n'))
+    .then(()=>showToast(`تم نسخ ${phones.length} رقم`))
+    .catch(()=>showToast('تعذّر النسخ'));
+});
 
 function renderList(){
   const wrap = document.getElementById('plist');
