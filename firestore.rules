@@ -70,6 +70,12 @@ service cloud.firestore {
       allow update, delete: if isShop();
     }
 
+    // محادثات المساعد الذكي: تُكتب من وظيفة السيرفر بحساب البوت،
+    // ويقرأها المتجر فقط — الزبون ما يوصل محادثات غيره
+    match /chats/{doc} {
+      allow read, write: if isShop();
+    }
+
     // ملف الزبون: كل زبون يوصل ملفه هو فقط، والمتجر يقرأ القائمة
     match /customers/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
