@@ -120,8 +120,9 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "الاسم والمحافظة والمنطقة مطلوبة" }) };
     }
 
-    // المحافظة تغيّر أجور التوصيل، فنعيد حساب المجموع من مبالغ الطلب المحفوظة
-    const delivery = deliveryFor(gov);
+    // المحافظة تغيّر أجور التوصيل، فنعيد حساب المجموع من مبالغ الطلب المحفوظة.
+    // وإذا الطلب انعمل بكود توصيل مجاني، تبقى الأجور صفر مهما بدّل محافظته.
+    const delivery = order.freeDelivery ? 0 : deliveryFor(gov);
     const total = Math.max(0, (order.subtotal || 0) + delivery - (order.discount || 0));
 
     const changes = {

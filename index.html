@@ -1382,7 +1382,9 @@ function initAnalytics(){
    أجور بغداد مع تنبيه بالفرق، ويتحدّث المبلغ لحظة ما يختار. */
 const DELIVERY_BAGHDAD = 4000;
 const DELIVERY_OTHER = 5000;
+function freeDelivery(){ return !!(APPLIED_COUPON && APPLIED_COUPON.type === 'freeDelivery'); }
 function deliveryFee(){
+  if(freeDelivery()) return 0;   // كود توصيل مجاني
   const el = document.getElementById('fGov');
   const gov = el ? el.value.trim() : '';
   if(!gov) return DELIVERY_BAGHDAD;
@@ -1428,7 +1430,8 @@ function removeItem(i){
 }
 function subtotal(){ return CART.reduce((s,it)=>s+it.price*it.qty,0); }
 function discountAmount(){
-  if(!APPLIED_COUPON) return 0;
+  // كود التوصيل المجاني يشيل الأجور، ما ينقص من سعر المنتجات
+  if(!APPLIED_COUPON || freeDelivery()) return 0;
   return Math.min(APPLIED_COUPON.amount, subtotal());
 }
 function grandTotal(){ return Math.max(0, subtotal() + deliveryFee() - discountAmount()); }
@@ -1441,12 +1444,16 @@ function refreshTotals(){
 }
 function totalsHTML(){
   let html = `<div class="tot-row"><span>مجموع المنتجات</span><span>${fmt(subtotal())} د.ع</span></div>`;
-  if(APPLIED_COUPON){
-    html += `<div class="tot-row" style="color:var(--gold2)"><span>خصم (${APPLIED_COUPON.code}) <span onclick="removeCoupon()" style="cursor:pointer;text-decoration:underline;margin-right:6px">إزالة</span></span><span>− ${fmt(discountAmount())} د.ع</span></div>`;
+  const remove = `<span onclick="removeCoupon()" style="cursor:pointer;text-decoration:underline;margin-right:6px">إزالة</span>`;
+  if(APPLIED_COUPON && !freeDelivery()){
+    html += `<div class="tot-row" style="color:var(--gold2)"><span>خصم (${APPLIED_COUPON.code}) ${remove}</span><span>− ${fmt(discountAmount())} د.ع</span></div>`;
   }
   const govPicked = (document.getElementById('fGov')||{}).value;
   const feeNote = govPicked ? '' : ' <span style="font-size:.72rem;color:var(--muted)">(بغداد · المحافظات 5,000)</span>';
-  html += `<div class="tot-row"><span>أجور التوصيل${feeNote}</span><span>${fmt(deliveryFee())} د.ع</span></div>
+  html += freeDelivery()
+    ? `<div class="tot-row" style="color:var(--gold2)"><span>أجور التوصيل (${APPLIED_COUPON.code}) ${remove}</span><span>مجاناً 🎉</span></div>`
+    : `<div class="tot-row"><span>أجور التوصيل${feeNote}</span><span>${fmt(deliveryFee())} د.ع</span></div>`;
+  html += `
   <div class="tot-row grand"><span>المجموع النهائي</span><span>${fmt(grandTotal())} د.ع</span></div>`;
   return html;
 }
@@ -1457,7 +1464,7 @@ function applyCoupon(){
   if(!code){ msg.textContent=''; return; }
   const found = DISCOUNT_CODES.find(c=>(c.code||'').toUpperCase()===code);
   if(found){
-    APPLIED_COUPON = {code: found.code, amount: Number(found.amount)||0};
+    APPLIED_COUPON = {code: found.code, amount: Number(found.amount)||0, type: found.type || 'amount'};
     msg.style.color = '#6fbf87';
     msg.textContent = 'تم تطبيق الخصم بنجاح ✓';
   } else {
@@ -1552,6 +1559,7 @@ async function submitOrder(){
     subtotal: subtotal(),
     discount: discountAmount(),
     couponCode: APPLIED_COUPON ? APPLIED_COUPON.code : null,
+    freeDelivery: freeDelivery(),
     delivery: deliveryFee(),
     total: grandTotal()
   };
@@ -1585,6 +1593,7 @@ async function submitOrder(){
     subtotal: subtotal(),
     discount: discountAmount(),
     couponCode: APPLIED_COUPON ? APPLIED_COUPON.code : null,
+    freeDelivery: freeDelivery(),
     delivery: deliveryFee(),
     total: grandTotal()
   });
