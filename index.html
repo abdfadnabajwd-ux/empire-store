@@ -2231,8 +2231,21 @@ let aiBusy = false;
    نحفظ آخر 40 رسالة فقط، وننسى المحادثة بعد 12 ساعة حتى ما يرجع
    بعد أيام ويلگي كلام قديم ما يتذكره. */
 const AI_STORE_KEY = 'empChat';
+const AI_ID_KEY = 'empChatId';
 const AI_KEEP_MSGS = 40;
 const AI_TTL_MS = 12 * 60 * 60 * 1000;
+
+/* معرّف المحادثة — يربط رسائل الزائر ببعضها بسجل لوحة التحكم */
+function aiChatId(){
+  try{
+    let id = localStorage.getItem(AI_ID_KEY);
+    if(!id){
+      id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+      localStorage.setItem(AI_ID_KEY, id);
+    }
+    return id;
+  }catch(e){ return null; }
+}
 
 function aiSaveHistory(){
   try{
@@ -2262,7 +2275,7 @@ function aiLoadHistory(){
 
 function aiClearHistory(){
   aiHistory = [];
-  try{ localStorage.removeItem(AI_STORE_KEY); }catch(e){}
+  try{ localStorage.removeItem(AI_STORE_KEY); localStorage.removeItem(AI_ID_KEY); }catch(e){}
   const box = document.getElementById('aiMessages');
   if(!box) return;
   // نبقي رسالة الترحيب ونشيل بس المحادثة
@@ -2329,7 +2342,7 @@ async function sendAiMessage(){
     const res = await fetch('/.netlify/functions/chat', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({messages: aiHistory})
+      body: JSON.stringify({messages: aiHistory, chatId: aiChatId()})
     });
     const data = await res.json();
     aiHideTyping();

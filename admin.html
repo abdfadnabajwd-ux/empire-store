@@ -101,6 +101,14 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
 .ordInv{font-weight:700;font-size:.8rem;color:var(--gold2)}
 .ordTotal{font-weight:800;font-size:.85rem}
 .ordMeta{font-size:.74rem;color:var(--grey);line-height:1.8}
+.chatCard{background:var(--navy2);border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;transition:.2s}
+.chatCard:hover{border-color:var(--line2)}
+.chatQ{font-size:.85rem;font-weight:700;line-height:1.6;margin-bottom:5px}
+.chatMeta{font-size:.72rem;color:var(--muted)}
+.bubble{border-radius:12px;padding:9px 12px;margin-bottom:8px;font-size:.83rem;line-height:1.7;white-space:pre-wrap;max-width:85%}
+.bubble.user{background:var(--navy3);margin-inline-start:auto;border-bottom-left-radius:4px}
+.bubble.bot{background:rgba(212,175,85,.08);border:1px solid var(--line);border-bottom-right-radius:4px}
+.bubble .who{display:block;font-size:.66rem;color:var(--muted);margin-bottom:3px;font-weight:700}
 .ordStatus{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
 .ordStatus select{width:auto;flex:1;min-width:120px;padding:7px 10px;font-size:.78rem}
 .oChip{font-size:.68rem;font-weight:700;border-radius:20px;padding:3px 10px;white-space:nowrap}
@@ -147,6 +155,7 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
       <button class="btn btn-ghost btn-sm" id="tabCouponsBtn" onclick="switchTab('coupons')">أكواد الخصم</button>
       <button class="btn btn-ghost btn-sm" id="tabStatsBtn" onclick="switchTab('stats')">الإحصائيات</button>
       <button class="btn btn-ghost btn-sm" id="tabMembersBtn" onclick="switchTab('members')">الأعضاء</button>
+      <button class="btn btn-ghost btn-sm" id="tabChatsBtn" onclick="switchTab('chats')">المحادثات</button>
       <button class="btn btn-ghost btn-sm" id="tabSettingsBtn" onclick="switchTab('settings')">إعدادات الموقع</button>
     </div>
 
@@ -246,6 +255,17 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
       </div>
       <div id="membersList" class="plist"></div>
       <div id="membersEmpty" class="empty" style="display:none">ما انضم أحد بعد.</div>
+    </div>
+
+    <div id="chatsTab" style="display:none">
+      <div class="summary">
+        <div class="stat"><b id="statChats">0</b><span>المحادثات المحفوظة</span></div>
+        <div class="stat"><b id="statChatMsgs">0</b><span>مجموع الرسائل</span></div>
+      </div>
+      <div class="searchBox"><input type="text" id="chatSearch" placeholder="ابحث بالنص... مثلاً: برو ماكس"></div>
+      <div id="chatsList" class="plist"></div>
+      <div id="chatsEmpty" class="empty" style="display:none">ما انحفظت محادثات بعد.</div>
+      <div id="chatView" style="display:none"></div>
     </div>
 
     <div id="settingsTab" style="display:none">
@@ -505,7 +525,7 @@ let pendingCouponDelId = null;
 let imgSource = 'lib'; // 'lib' or 'upload'
 let uploadedImgUrl = null; // holds base64 data URL for uploaded images
 
-const TABS = ['products','coupons','stats','members','settings'];
+const TABS = ['products','coupons','stats','members','chats','settings'];
 function switchTab(tab){
   TABS.forEach(t=>{
     document.getElementById(t+'Tab').style.display = t===tab ? '' : 'none';
@@ -538,6 +558,7 @@ async function initFirebase(){
       listenSettings();
       listenAnalytics();
       listenMembers();
+      listenChats();
     } else {
       document.getElementById('loginScreen').style.display='flex';
       document.getElementById('dash').style.display='none';
@@ -925,6 +946,62 @@ async function setOrderStatus(id, status){
     showToast('تعذّر التحديث');
   }
 }
+
+/* ===== محادثات المساعد =====
+   نقرأها حتى نعرف شنو يسأل عنه الزبائن فعلاً ووين المساعد يقصّر */
+let chats = [];
+function listenChats(){
+  const q = fsMod.query(fsMod.collection(db,'chats'), fsMod.orderBy('updatedAt','desc'), fsMod.limit(200));
+  fsMod.onSnapshot(q, snap=>{
+    chats = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderChats();
+  }, err=>console.warn('تعذّر تحميل المحادثات', err));
+}
+
+function chatMatches(c, q){
+  if(!q) return true;
+  if((c.firstQuestion||'').toLowerCase().includes(q)) return true;
+  return (c.messages||[]).some(m=>(m.content||'').toLowerCase().includes(q));
+}
+
+function renderChats(){
+  const q = (document.getElementById('chatSearch').value||'').trim().toLowerCase();
+  const shown = chats.filter(c=>chatMatches(c,q));
+
+  document.getElementById('statChats').textContent = chats.length;
+  document.getElementById('statChatMsgs').textContent =
+    chats.reduce((s,c)=>s+(c.messageCount||0),0);
+  document.getElementById('chatsEmpty').style.display = chats.length ? 'none' : 'block';
+
+  document.getElementById('chatsList').innerHTML = shown.map((c,i)=>{
+    const when = c.updatedAt ? new Date(c.updatedAt) : null;
+    const t = when ? `${when.getDate()}/${when.getMonth()+1} · ${String(when.getHours()).padStart(2,'0')}:${String(when.getMinutes()).padStart(2,'0')}` : '';
+    return `<div class="chatCard" onclick="openChat('${c.id}')">
+      <div class="chatQ">${escapeHtml(c.firstQuestion||'(بلا سؤال)')}</div>
+      <div class="chatMeta">${c.messageCount||0} رسالة · ${t}</div>
+    </div>`;
+  }).join('');
+}
+
+function openChat(id){
+  const c = chats.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('chatsList').style.display='none';
+  document.getElementById('chatView').style.display='';
+  const when = c.updatedAt ? new Date(c.updatedAt) : null;
+  document.getElementById('chatView').innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="closeChat()" style="margin-bottom:12px">← رجوع للقائمة</button>
+    <div class="small" style="margin-bottom:12px">${c.messageCount||0} رسالة${
+      when?` · ${when.getDate()}/${when.getMonth()+1}/${when.getFullYear()} الساعة ${String(when.getHours()).padStart(2,'0')}:${String(when.getMinutes()).padStart(2,'0')}`:''}</div>
+    ${(c.messages||[]).map(m=>`<div class="bubble ${m.role==='user'?'user':'bot'}">
+      <span class="who">${m.role==='user'?'الزبون':'المساعد'}</span>${escapeHtml(m.content||'')}
+    </div>`).join('')}`;
+}
+function closeChat(){
+  document.getElementById('chatView').style.display='none';
+  document.getElementById('chatsList').style.display='';
+}
+document.getElementById('chatSearch').addEventListener('input', ()=>{ closeChat(); renderChats(); });
 
 /* ===== الأعضاء ===== */
 let members = [];

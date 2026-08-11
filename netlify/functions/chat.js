@@ -6,6 +6,54 @@
 
 const FIREBASE_PROJECT = "empire-store-9c546";
 
+const { createClient, FS_BASE } = require("./lib/firestore.js");
+
+/* ===== حفظ المحادثة =====
+   تنحفظ بمجموعة chats — يقرأها صاحب المتجر بس (قواعد Firestore).
+   الغرض: يعرف شنو يسأل عنه الزبائن فعلاً ووين المساعد يقصّر. */
+const MAX_STORED = 40;   // آخر رسائل المحادثة
+const MAX_LEN = 1500;    // طول الرسالة الواحدة
+
+const cleanText = t =>
+  String(t == null ? "" : t).replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, MAX_LEN);
+
+/* معرّف المحادثة يجي من المتصفح — ننظّفه حتى ما ينكتب بمسار غريب */
+const safeChatId = id => {
+  const v = String(id || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 60);
+  return v.length >= 6 ? v : null;
+};
+
+async function saveChat(chatId, messages, reply) {
+  const id = safeChatId(chatId);
+  if (!id) return;
+  const all = [...messages, { role: "assistant", content: reply }]
+    .slice(-MAX_STORED)
+    .map(m => ({
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: cleanText(m.content)
+    }))
+    .filter(m => m.content);
+  if (!all.length) return;
+
+  const first = (all.find(m => m.role === "user") || {}).content || "";
+  const fields = {
+    messages: { arrayValue: { values: all.map(m => ({
+      mapValue: { fields: { role: { stringValue: m.role }, content: { stringValue: m.content } } }
+    })) } },
+    firstQuestion: { stringValue: first.slice(0, 200) },
+    messageCount: { integerValue: String(all.length) },
+    updatedAt: { integerValue: String(Date.now()) }
+  };
+
+  const paths = Object.keys(fields).map(k => `updateMask.fieldPaths=${k}`).join("&");
+  const res = await createClient().fsFetch(`${FS_BASE}/chats/${id}?${paths}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fields })
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+}
+
 /* معلومات ثابتة عن امباير — تُغذّى للذكاء الاصطناعي مع كل محادثة */
 const STORE_KNOWLEDGE = `
 أنت "مساعد امباير" — موظف خدمة زبائن عراقي يشتغل بمتجر EMPIRE لبيع منتجات Apple الأصلية ببغداد.
@@ -199,6 +247,14 @@ exports.handler = async (event) => {
     }
 
     const reply = (data.content || []).map(b => b.text || "").join("").trim();
+
+    // الحفظ ما يعطّل رد الزبون — لو فشل نكمل عادي
+    try {
+      await saveChat(body.chatId, messages, reply);
+    } catch (e) {
+      console.error("chat: تعذّر حفظ المحادثة —", e.message);
+    }
+
     return { statusCode: 200, headers, body: JSON.stringify({ reply }) };
   } catch (e) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: "تعذّر الاتصال بالخادم" }) };
