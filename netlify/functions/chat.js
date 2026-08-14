@@ -6,8 +6,6 @@
 
 const FIREBASE_PROJECT = "empire-store-9c546";
 
-const { createClient, FS_BASE } = require("./lib/firestore.js");
-
 /* ===== حفظ المحادثة =====
    تنحفظ بمجموعة chats — يقرأها صاحب المتجر بس (قواعد Firestore).
    الغرض: يعرف شنو يسأل عنه الزبائن فعلاً ووين المساعد يقصّر. */
@@ -26,6 +24,9 @@ const safeChatId = id => {
 async function saveChat(chatId, messages, reply) {
   const id = safeChatId(chatId);
   if (!id) return;
+  // يُحمّل هنا لا بأعلى الملف: خدمة الزبون أهم من حفظ المحادثة،
+  // فأي خلل بهذا الملف يجب ألا يمنع المساعد من الرد
+  const { createClient, FS_BASE } = require("./lib/firestore.js");
   const all = [...messages, { role: "assistant", content: reply }]
     .slice(-MAX_STORED)
     .map(m => ({
