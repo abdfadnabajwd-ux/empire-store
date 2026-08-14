@@ -346,10 +346,21 @@ select.f-input{appearance:none;cursor:pointer}
 
 /* ============ 11) MOBILE ============ */
 @media(max-width:860px){
-  .hero-inner{grid-template-columns:1fr;gap:34px;text-align:center}
-  .hero-text .lead{margin:0 auto 30px}
-  .hero-cta{justify-content:center}
-  .hero-visual img{width:min(280px,72%)}
+  /* بالموبايل الصورة الإعلانية هي البطل — نصغّر النصوص ونوسّعها */
+  .hero{padding:132px 16px 46px}
+  .hero-inner{grid-template-columns:1fr;gap:20px;text-align:center}
+  .hero-text .kicker{font-size:.62rem;letter-spacing:2px;padding:5px 13px;margin-bottom:12px}
+  .hero-text h1{font-size:1.55rem;margin-bottom:9px}
+  .hero-text .lead{font-size:.82rem;line-height:1.65;margin:0 auto 18px;max-width:340px}
+  .hero-cta{justify-content:center;gap:10px}
+  .hero-cta .btn{padding:11px 22px;font-size:.85rem}
+  .hero-visual img{width:min(500px,100%)}
+  .hero-visual::before{width:92%}
+  .hero-tag{bottom:2%;right:2%;padding:7px 13px;font-size:.72rem}
+}
+@media(max-width:400px){
+  .hero-text h1{font-size:1.38rem}
+  .hero-text .lead{font-size:.78rem}
 }
 @media(max-width:640px){
   nav{padding:0 14px}
