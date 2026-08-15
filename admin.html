@@ -756,12 +756,12 @@ document.getElementById('sHeroImgFile').addEventListener('change', async (e)=>{
   try{
     /* صورة الإعلان تنعرض بعرض 500 بكسل بالموبايل، وعلى شاشة 3× تحتاج 1500
        بكسل حقيقية حتى ما تطلع ضبابية */
-    const out = await resizeImageToDataUrl(file, 1400, 0.85, 360 * 1024);
+    const out = await resizeImageToDataUrl(file, 1400, 0.85, 500 * 1024);
     heroImgPending = out.url;
     preview.src = out.url;
     preview.style.display = 'block';
     const kb = Math.round(out.url.length / 1024);
-    statusEl.textContent = `تم تجهيز الصورة ✓ (${out.w}×${out.h} — ${kb} كيلوبايت) — لن تُحفظ إلا بعد "حفظ الإعدادات"`;
+    statusEl.textContent = `تم تجهيز الصورة ✓ (${out.w}×${out.h} · ${out.fmt} · ${kb} كيلوبايت) — لن تُحفظ إلا بعد "حفظ الإعدادات"`;
   }catch(err){
     statusEl.textContent = 'تعذّر معالجة الصورة، جرب صورة ثانية';
     heroImgPending = undefined;
@@ -1127,7 +1127,7 @@ document.getElementById('fImgFile').addEventListener('change', async (e)=>{
     preview.src = out.url;
     preview.style.display = 'block';
     const kb = Math.round(out.url.length / 1024);
-    statusEl.textContent = `تم تجهيز الصورة ✓ (${out.w}×${out.h} — ${kb} كيلوبايت)`;
+    statusEl.textContent = `تم تجهيز الصورة ✓ (${out.w}×${out.h} · ${out.fmt} · ${kb} كيلوبايت)`;
   }catch(err){
     statusEl.textContent = 'تعذّر معالجة الصورة، جرب صورة ثانية';
     uploadedImgUrl = null;
@@ -1144,6 +1144,24 @@ document.getElementById('fImgFile').addEventListener('change', async (e)=>{
 
    نبدي بأعلى دقة، وإذا طلعت أثقل من الميزانية ننزل بالجودة ثم بالعرض
    خطوة خطوة — أول نتيجة تدخل الميزانية هي اللي نرجعها. */
+/* نرسم نسخة مصغّرة ونفحص قناة الشفافية — المصغّرة تكفي والفحص يكون فوري.
+   إذا تعذّر الفحص لأي سبب، نفترض إن بالصورة شفافية حتى لا نخسرها. */
+function hasTransparency(img){
+  try{
+    const scale = Math.min(1, 80 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.width * scale));
+    c.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    for(let i = 3; i < d.length; i += 4){ if(d[i] < 250) return true; }
+    return false;
+  }catch(e){
+    return true;
+  }
+}
+
 function resizeImageToDataUrl(file, maxWidth, quality, budgetBytes){
   const budget = budgetBytes || 360 * 1024;
   return new Promise((resolve, reject)=>{
@@ -1151,6 +1169,11 @@ function resizeImageToDataUrl(file, maxWidth, quality, budgetBytes){
     const reader = new FileReader();
     reader.onload = ()=>{
       img.onload = ()=>{
+        /* امتداد PNG ما يعني إن بالصورة شفافية فعلاً، وPNG ثقيل جداً —
+           صورة الإعلان المحفوظة قبل هذا التعديل كانت نص ميغا بعرض 700
+           بكسل بس. فنفحص البكسلات: إذا ماكو شفافية حقيقية، JPEG ينطي نفس
+           الوضوح بجزء بسيط من الحجم، ونصرف الفرق على دقة أعلى. */
+        const transparent = hasTransparency(img);
         const render = (w, q)=>{
           const scale = Math.min(1, w / img.width);   /* ما نكبّر صورة صغيرة — التكبير يزيد الحجم ولا يزيد التفاصيل */
           const canvas = document.createElement('canvas');
@@ -1158,15 +1181,18 @@ function resizeImageToDataUrl(file, maxWidth, quality, budgetBytes){
           canvas.height = Math.max(1, Math.round(img.height * scale));
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          let url;
-          if(file.type === 'image/png'){
-            /* JPEG لا يدعم الشفافية — نستخدم WebP للحفاظ عليها بحجم صغير، والمتصفح الذي لا يدعم ترميز WebP يرجّع PNG تلقائياً */
+          let url, fmt;
+          if(transparent){
+            /* WebP يحافظ على الشفافية بحجم صغير. المتصفح الذي لا يدعم ترميزه
+               يرجّع PNG، وهذا هو المسار الوحيد الذي يبقى ثقيلاً. */
             const webp = canvas.toDataURL('image/webp', q);
-            url = webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png');
+            if(webp.startsWith('data:image/webp')){ url = webp; fmt = 'WEBP'; }
+            else { url = canvas.toDataURL('image/png'); fmt = 'PNG'; }
           } else {
             url = canvas.toDataURL('image/jpeg', q);
+            fmt = 'JPEG';
           }
-          return { url: url, w: canvas.width, h: canvas.height };
+          return { url: url, w: canvas.width, h: canvas.height, fmt: fmt };
         };
 
         let out = render(maxWidth, quality);
