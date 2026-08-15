@@ -11,6 +11,14 @@
 const TEXT = { "Content-Type": "text/plain; charset=utf-8" };
 const FIREBASE_PROJECT = "empire-store-9c546";
 
+/* آخر ٦ حروف من المفتاح فقط — تكفي لمطابقته بصفحة API Keys بحساب
+   Anthropic حتى يتأكد صاحب المتجر إنه داخل الحساب الصحيح، ولا تكفي
+   أبداً لاستعمال المفتاح. نفس الشي تسويه لوحة Anthropic نفسها. */
+function fingerprint(key) {
+  const k = String(key || "");
+  return k.length > 6 ? "…" + k.slice(-6) : "…";
+}
+
 async function step(label, fn) {
   try {
     const detail = await fn();
@@ -31,7 +39,7 @@ exports.handler = async (event) => {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   lines.push(apiKey
-    ? `✅ مفتاح Anthropic موجود (${apiKey.length} حرف)`
+    ? `✅ مفتاح Anthropic موجود (${apiKey.length} حرف) — بصمته ${fingerprint(apiKey)}`
     : "❌ مفتاح Anthropic غير مضبوط — ضِف ANTHROPIC_API_KEY بإعدادات Netlify");
 
   lines.push(await step("قائمة المنتجات", async () => {
