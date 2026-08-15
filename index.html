@@ -104,7 +104,7 @@ nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(30,38,56,.92);ba
 
 /* ============ 2) HERO — split ad layout ============ */
 .hero{padding:168px 24px 70px;background:linear-gradient(165deg,#222b42 0%,var(--navy) 55%,#1a2132 100%);border-bottom:1px solid var(--line)}
-.hero-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
+.hero-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1.1fr;gap:40px;align-items:center}
 .hero-text .kicker{display:inline-block;font-size:.72rem;letter-spacing:3px;font-weight:700;color:var(--gold2);border:1px solid var(--line);border-radius:24px;padding:6px 18px;margin-bottom:22px}
 .hero-text h1{color:var(--white);margin-bottom:14px}
 /* السطر الذهبي أصغر شوية من سطر العنوان الأول حتى يبقى العنوان هو
@@ -119,7 +119,8 @@ nav{position:fixed;top:0;width:100%;z-index:100;background:rgba(30,38,56,.92);ba
 .btn-ghost:hover{background:rgba(212,175,85,.08)}
 .hero-visual{position:relative;display:flex;align-items:center;justify-content:center}
 .hero-visual::before{content:'';position:absolute;width:78%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(212,175,85,.16) 0%,transparent 68%)}
-.hero-visual img{width:min(360px,82%);height:auto;position:relative;filter:drop-shadow(0 26px 44px rgba(0,0,0,.5));animation:floaty 5.5s ease-in-out infinite}
+/* الصورة تملا عمودها كامل — الحد 580 حتى ما تكبر أكثر من دقة الرفع (1400 بكسل على شاشة 2×) */
+.hero-visual img{width:min(580px,100%);height:auto;position:relative;filter:drop-shadow(0 26px 44px rgba(0,0,0,.5));animation:floaty 5.5s ease-in-out infinite}
 @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-13px)}}
 .hero-tag{position:absolute;bottom:8%;right:6%;background:rgba(30,38,56,.92);border:1px solid var(--line2);border-radius:12px;padding:10px 18px;font-size:.8rem;font-weight:700;color:var(--gold2);backdrop-filter:blur(8px)}
 
