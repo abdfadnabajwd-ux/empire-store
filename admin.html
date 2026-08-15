@@ -754,12 +754,14 @@ document.getElementById('sHeroImgFile').addEventListener('change', async (e)=>{
   const preview = document.getElementById('sHeroImgPreview');
   statusEl.textContent = 'جارٍ تجهيز الصورة...';
   try{
-    const dataUrl = await resizeImageToDataUrl(file, 700, 0.75);
-    heroImgPending = dataUrl;
-    preview.src = dataUrl;
+    /* صورة الإعلان تنعرض بعرض 500 بكسل بالموبايل، وعلى شاشة 3× تحتاج 1500
+       بكسل حقيقية حتى ما تطلع ضبابية */
+    const out = await resizeImageToDataUrl(file, 1400, 0.85, 360 * 1024);
+    heroImgPending = out.url;
+    preview.src = out.url;
     preview.style.display = 'block';
-    const kb = Math.round(dataUrl.length * 0.75 / 1024);
-    statusEl.textContent = `تم تجهيز الصورة ✓ (${kb} كيلوبايت) — لن تُحفظ إلا بعد "حفظ الإعدادات"`;
+    const kb = Math.round(out.url.length / 1024);
+    statusEl.textContent = `تم تجهيز الصورة ✓ (${out.w}×${out.h} — ${kb} كيلوبايت) — لن تُحفظ إلا بعد "حفظ الإعدادات"`;
   }catch(err){
     statusEl.textContent = 'تعذّر معالجة الصورة، جرب صورة ثانية';
     heroImgPending = undefined;
@@ -1119,38 +1121,65 @@ document.getElementById('fImgFile').addEventListener('change', async (e)=>{
   const preview = document.getElementById('fUploadPreview');
   statusEl.textContent = 'جارٍ تجهيز الصورة...';
   try{
-    const dataUrl = await resizeImageToDataUrl(file, 700, 0.72);
-    uploadedImgUrl = dataUrl;
-    preview.src = dataUrl;
+    /* صور المنتجات تنعرض بمربعات صغيرة بالشبكة، فـ700 تكفيها وتخلي الصفحة خفيفة */
+    const out = await resizeImageToDataUrl(file, 700, 0.72, 200 * 1024);
+    uploadedImgUrl = out.url;
+    preview.src = out.url;
     preview.style.display = 'block';
-    const kb = Math.round(dataUrl.length * 0.75 / 1024);
-    statusEl.textContent = `تم تجهيز الصورة ✓ (${kb} كيلوبايت)`;
+    const kb = Math.round(out.url.length / 1024);
+    statusEl.textContent = `تم تجهيز الصورة ✓ (${out.w}×${out.h} — ${kb} كيلوبايت)`;
   }catch(err){
     statusEl.textContent = 'تعذّر معالجة الصورة، جرب صورة ثانية';
     uploadedImgUrl = null;
   }
 });
 
-/* تصغير الصورة وتحويلها لـ base64 عشان تنخزن مباشرة بقاعدة البيانات المجانية بدون الحاجة لخدمة تخزين مدفوعة */
-function resizeImageToDataUrl(file, maxWidth, quality){
+/* تصغير الصورة وتحويلها لـ base64 عشان تنخزن مباشرة بقاعدة البيانات المجانية
+   بدون الحاجة لخدمة تخزين مدفوعة.
+
+   شاشات الموبايل الحديثة كثافتها 2× أو 3×، يعني الصورة اللي تنعرض بعرض 500
+   بكسل تحتاج 1500 بكسل حقيقية حتى تطلع حادة. فنرفع الدقة قدر ما نكدر، بس
+   ندخل بميزانية حجم: وثيقة Firestore محدودة بميغابايت، والصورة الثقيلة
+   تبطّئ فتح الموقع على بيانات الموبايل.
+
+   نبدي بأعلى دقة، وإذا طلعت أثقل من الميزانية ننزل بالجودة ثم بالعرض
+   خطوة خطوة — أول نتيجة تدخل الميزانية هي اللي نرجعها. */
+function resizeImageToDataUrl(file, maxWidth, quality, budgetBytes){
+  const budget = budgetBytes || 360 * 1024;
   return new Promise((resolve, reject)=>{
     const img = new Image();
     const reader = new FileReader();
     reader.onload = ()=>{
       img.onload = ()=>{
-        const scale = Math.min(1, maxWidth / img.width);
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        if(file.type === 'image/png'){
-          /* JPEG لا يدعم الشفافية — نستخدم WebP للحفاظ عليها بحجم صغير، والمتصفح الذي لا يدعم ترميز WebP يرجّع PNG تلقائياً */
-          const out = canvas.toDataURL('image/webp', quality);
-          resolve(out.startsWith('data:image/webp') ? out : canvas.toDataURL('image/png'));
-        } else {
-          resolve(canvas.toDataURL('image/jpeg', quality));
+        const render = (w, q)=>{
+          const scale = Math.min(1, w / img.width);   /* ما نكبّر صورة صغيرة — التكبير يزيد الحجم ولا يزيد التفاصيل */
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          let url;
+          if(file.type === 'image/png'){
+            /* JPEG لا يدعم الشفافية — نستخدم WebP للحفاظ عليها بحجم صغير، والمتصفح الذي لا يدعم ترميز WebP يرجّع PNG تلقائياً */
+            const webp = canvas.toDataURL('image/webp', q);
+            url = webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png');
+          } else {
+            url = canvas.toDataURL('image/jpeg', q);
+          }
+          return { url: url, w: canvas.width, h: canvas.height };
+        };
+
+        let out = render(maxWidth, quality);
+        const steps = [
+          [maxWidth,        quality - 0.10],
+          [maxWidth * 0.80, quality - 0.10],
+          [maxWidth * 0.65, quality - 0.15],
+          [maxWidth * 0.50, quality - 0.20]
+        ];
+        for(let i = 0; i < steps.length && out.url.length > budget; i++){
+          out = render(steps[i][0], Math.max(0.5, steps[i][1]));
         }
+        resolve(out);
       };
       img.onerror = reject;
       img.src = reader.result;
