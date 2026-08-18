@@ -146,8 +146,12 @@ label{display:block;font-size:.78rem;color:var(--grey);margin-bottom:6px;font-we
 <div id="dash">
   <div class="topbar">
     <div class="logo">EMPIRE <span style="color:var(--grey);font-weight:400;font-size:.8rem">Admin</span></div>
-    <button class="btn btn-ghost btn-sm" id="logoutBtn">تسجيل الخروج</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="whoami" class="small" style="color:var(--grey)"></span>
+      <button class="btn btn-ghost btn-sm" id="logoutBtn">تسجيل الخروج</button>
+    </div>
   </div>
+  <div id="notShopWarn" style="display:none;background:#3a1d1d;border-bottom:1px solid var(--danger);color:#ffb4b4;padding:10px 16px;font-size:.85rem;text-align:center"></div>
 
   <div class="wrap">
     <div class="tools" style="margin-bottom:18px">
@@ -561,10 +565,26 @@ async function initFirebase(){
   auth = authMod.getAuth(app);
   db = fsMod.getFirestore(app);
 
+  /* نفس الحسابات المسموحة بقواعد Firestore. الفرق إن القواعد ترفض بصمت،
+     فنبيّن هنا بالبريد الداخل حتى ما ينحار أحد ليش الحفظ يفشل: اللوحة
+     تفتح لأي حساب مسجّل (المنتجات والإعدادات قراءتها عامة)، بس الكتابة
+     محصورة بحسابات المتجر. */
+  const SHOP_EMAILS = ['alazzawi913@gmail.com', 'bot@empire.iq'];
+
   authMod.onAuthStateChanged(auth, user=>{
     if(user){
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('dash').style.display='block';
+      const email = (user.email || '').trim();
+      document.getElementById('whoami').textContent = email;
+      const warn = document.getElementById('notShopWarn');
+      if(SHOP_EMAILS.indexOf(email.toLowerCase()) === -1){
+        warn.style.display = 'block';
+        warn.textContent = 'أنت داخل بحساب ' + (email || 'غير معروف') +
+          ' — هذا مو حساب المتجر، فأي حفظ راح ينرفض. اطلع وادخل بحساب المتجر.';
+      } else {
+        warn.style.display = 'none';
+      }
       listenProducts();
       listenCoupons();
       listenSettings();
@@ -696,7 +716,7 @@ document.getElementById('saveCouponForm').addEventListener('click', async ()=>{
     showToast('تم إنشاء كود الخصم');
     document.getElementById('couponFormOverlay').classList.remove('open');
   }catch(e){
-    errEl.textContent = 'تعذّر الحفظ، حاول مرة أخرى';
+    errEl.textContent = saveErrorText(e);
   }
   btn.disabled = false; btn.textContent = 'حفظ الكود';
 });
@@ -774,6 +794,29 @@ document.getElementById('sHeroImgClear').addEventListener('click', ()=>{
   document.getElementById('sHeroImgPreview').style.display = 'none';
   document.getElementById('sHeroImgStatus').textContent = 'راح ترجع الصورة الافتراضية بعد الحفظ';
 });
+/* ============================================================
+   شرح سبب فشل الحفظ بدل رسالة عامة
+
+   Firestore يرفض الكتابة لأسباب مختلفة تماماً — صلاحية، أو انتهاء
+   جلسة، أو تجاوز حدود الخطة، أو انقطاع اتصال — وكلها كانت تطلع
+   لصاحب المتجر بنفس الجملة، فما كان عنده أي طريقة يعرف وين الخلل.
+   نعرض السبب بالعربي ومعه رمز الخطأ الأصلي حتى ينفع بالتشخيص.
+   ============================================================ */
+function saveErrorText(e){
+  const code = (e && e.code ? String(e.code) : '').replace('firestore/', '');
+  const why = {
+    'permission-denied': 'الحساب الداخل ما عنده صلاحية الكتابة — تأكد إنك داخل بحساب المتجر',
+    'unauthenticated':   'الجلسة انتهت — اطلع وادخل من جديد',
+    'resource-exhausted':'تجاوزت حدود الخطة المجانية لقاعدة البيانات — تنفك بكرة أو بترقية الخطة',
+    'unavailable':       'ماكو اتصال بقاعدة البيانات — شوف الإنترنت وجرّب مرة ثانية',
+    'invalid-argument':  'البيانات المرسلة مرفوضة — غالباً الوثيقة أكبر من الحد المسموح',
+    'deadline-exceeded': 'الطلب استغرق وقت طويل — جرّب مرة ثانية',
+    'not-found':         'الوثيقة مو موجودة بقاعدة البيانات'
+  }[code];
+  if(why) return 'تعذّر الحفظ: ' + why + ' (' + code + ')';
+  return 'تعذّر الحفظ: ' + ((e && e.message) ? String(e.message).slice(0, 140) : 'سبب غير معروف');
+}
+
 document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
   const val = document.getElementById('sPriceDate').value.trim();
   const tickerLines = document.getElementById('sTicker').value.split('\n').map(s=>s.trim()).filter(Boolean);
@@ -796,7 +839,7 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async ()=>{
     msg.textContent = 'تم حفظ الإعدادات بنجاح ✓';
   }catch(e){
     msg.style.color = 'var(--danger)';
-    msg.textContent = 'تعذّر الحفظ، حاول مرة أخرى';
+    msg.textContent = saveErrorText(e);
   }
   btn.disabled = false; btn.textContent = 'حفظ الإعدادات';
 });
@@ -1306,7 +1349,7 @@ document.getElementById('saveForm').addEventListener('click', async ()=>{
     }
     document.getElementById('formOverlay').classList.remove('open');
   }catch(e){
-    errEl.textContent = 'تعذّر الحفظ، حاول مرة أخرى';
+    errEl.textContent = saveErrorText(e);
   }
   btn.disabled = false; btn.textContent = 'حفظ المنتج';
 });
